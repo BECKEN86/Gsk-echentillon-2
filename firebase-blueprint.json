@@ -1,0 +1,268 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Article ou marchandise en stock",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identifiant unique" },
+        "code": { "type": "string", "description": "Code référence" },
+        "name": { "type": "string", "description": "Désignation" },
+        "category": { "type": "string", "description": "Nom de catégorie" },
+        "categoryId": { "type": "string", "description": "ID de catégorie" },
+        "buyPrice": { "type": "number", "description": "Prix d'achat unitaire" },
+        "sellPrice": { "type": "number", "description": "Prix de vente unitaire" },
+        "stock": { "type": "number", "description": "Quantité en stock" },
+        "minStock": { "type": "number", "description": "Seuil d'alerte stock" },
+        "unit": { "type": "string", "description": "Unité de mesure" }
+      },
+      "required": ["id", "code", "name"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Catégorie de produit",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identifiant de catégorie" },
+        "code": { "type": "string", "description": "Code court" },
+        "name": { "type": "string", "description": "Nom de la catégorie" }
+      },
+      "required": ["id", "name"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Fiche client",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identifiant client" },
+        "name": { "type": "string", "description": "Nom du client" },
+        "phone": { "type": "string", "description": "Numéro de téléphone" },
+        "creditBalance": { "type": "number", "description": "Solde dû" }
+      },
+      "required": ["id", "name"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Fiche fournisseur",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identifiant fournisseur" },
+        "name": { "type": "string", "description": "Nom du fournisseur" },
+        "phone": { "type": "string", "description": "Téléphone" },
+        "balance": { "type": "number", "description": "Dette fournisseur" }
+      },
+      "required": ["id", "name"]
+    },
+    "SaleOrder": {
+      "title": "SaleOrder",
+      "description": "Commande ou vente effectuée",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identifiant vente" },
+        "code": { "type": "string", "description": "Numéro de facture ou ticket" },
+        "date": { "type": "string", "description": "Date de la vente" },
+        "finalAmount": { "type": "number", "description": "Montant total TTC" },
+        "paymentMethod": { "type": "string", "description": "Mode de règlement" },
+        "status": { "type": "string", "description": "Statut de la vente" }
+      },
+      "required": ["id", "code", "finalAmount"]
+    },
+    "PurchaseOrder": {
+      "title": "PurchaseOrder",
+      "description": "Bon de commande fournisseur",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identifiant commande" },
+        "code": { "type": "string", "description": "Numéro de commande" },
+        "supplierName": { "type": "string", "description": "Nom du fournisseur" },
+        "totalAmount": { "type": "number", "description": "Montant total" },
+        "status": { "type": "string", "description": "Statut du bon" }
+      },
+      "required": ["id", "code"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Mouvement de stock entrée ou sortie",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID mouvement" },
+        "date": { "type": "string", "description": "Date" },
+        "productId": { "type": "string", "description": "ID du produit" },
+        "quantity": { "type": "number", "description": "Quantité mouvementée" },
+        "type": { "type": "string", "description": "Type de mouvement" }
+      },
+      "required": ["id", "productId", "quantity"]
+    },
+    "PointDeVente": {
+      "title": "PointDeVente",
+      "description": "Session de caisse",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID session" },
+        "code": { "type": "string", "description": "Numéro de session" },
+        "operator": { "type": "string", "description": "Caissier" },
+        "openingAmount": { "type": "number", "description": "Fonds d'ouverture" },
+        "status": { "type": "string", "description": "Statut de session" }
+      },
+      "required": ["id", "code"]
+    },
+    "FinancialTransaction": {
+      "title": "FinancialTransaction",
+      "description": "Recette ou dépense",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID transaction" },
+        "code": { "type": "string", "description": "Numéro de pièce" },
+        "type": { "type": "string", "description": "Recette ou Dépense" },
+        "amount": { "type": "number", "description": "Montant" }
+      },
+      "required": ["id", "amount"]
+    },
+    "TreasuryAccount": {
+      "title": "TreasuryAccount",
+      "description": "Compte de trésorerie ou caisse",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID compte" },
+        "name": { "type": "string", "description": "Libellé du compte" },
+        "balance": { "type": "number", "description": "Solde disponible" }
+      },
+      "required": ["id", "name"]
+    },
+    "TreasuryMovement": {
+      "title": "TreasuryMovement",
+      "description": "Transfert ou mouvement de fonds",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID mouvement" },
+        "code": { "type": "string", "description": "Référence" },
+        "amount": { "type": "number", "description": "Montant" }
+      },
+      "required": ["id", "amount"]
+    },
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Profil utilisateur de l'application",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID utilisateur" },
+        "username": { "type": "string", "description": "Identifiant de connexion" },
+        "name": { "type": "string", "description": "Nom complet" },
+        "role": { "type": "string", "description": "Rôle métier" }
+      },
+      "required": ["id", "username", "name"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Trace d'audit d'une action",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID audit" },
+        "timestamp": { "type": "string", "description": "Date et heure" },
+        "action": { "type": "string", "description": "Action effectuée" },
+        "operator": { "type": "string", "description": "Opérateur" }
+      },
+      "required": ["id", "action"]
+    },
+    "PriceInquiry": {
+      "title": "PriceInquiry",
+      "description": "Demande de prix fournisseur",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID demande" },
+        "code": { "type": "string", "description": "Code demande" },
+        "date": { "type": "string", "description": "Date" }
+      },
+      "required": ["id", "code"]
+    },
+    "GoodsReception": {
+      "title": "GoodsReception",
+      "description": "Réception de marchandises fournisseur",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID réception" },
+        "code": { "type": "string", "description": "Code réception" },
+        "date": { "type": "string", "description": "Date" }
+      },
+      "required": ["id", "code"]
+    },
+    "AppMeta": {
+      "title": "AppMeta",
+      "description": "Métadonnées globales et compteurs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Clé de configuration" },
+        "counters": { "type": "object", "description": "Numérotations de documents" },
+        "companyConfig": { "type": "object", "description": "Paramètres société" },
+        "lastUpdated": { "type": "string", "description": "Horodatage de dernière synchronisation" }
+      },
+      "required": ["id"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Catalogue des articles en stock"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Catégories de produits"
+    },
+    "/clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Fiches clients et créances"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": { "$ref": "#/entities/Supplier" },
+      "description": "Fournisseurs et dettes"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": { "$ref": "#/entities/PriceInquiry" },
+      "description": "Demandes de prix fournisseurs"
+    },
+    "/receptions/{receptionId}": {
+      "schema": { "$ref": "#/entities/GoodsReception" },
+      "description": "Réceptions de marchandises fournisseurs"
+    },
+    "/saleOrders/{saleOrderId}": {
+      "schema": { "$ref": "#/entities/SaleOrder" },
+      "description": "Commandes et tickets de caisse"
+    },
+    "/purchaseOrders/{purchaseOrderId}": {
+      "schema": { "$ref": "#/entities/PurchaseOrder" },
+      "description": "Bons de commande fournisseurs"
+    },
+    "/movements/{movementId}": {
+      "schema": { "$ref": "#/entities/StockMovement" },
+      "description": "Journal des mouvements de stock"
+    },
+    "/pointsDeVente/{pointDeVenteId}": {
+      "schema": { "$ref": "#/entities/PointDeVente" },
+      "description": "Sessions de caisse"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/FinancialTransaction" },
+      "description": "Recettes et dépenses d'exploitation"
+    },
+    "/treasuryAccounts/{accountId}": {
+      "schema": { "$ref": "#/entities/TreasuryAccount" },
+      "description": "Comptes de caisse et banque"
+    },
+    "/treasuryMovements/{movementId}": {
+      "schema": { "$ref": "#/entities/TreasuryMovement" },
+      "description": "Mouvements internes de trésorerie"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Comptes utilisateurs"
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Journal d'audit"
+    },
+    "/metadata/{metaId}": {
+      "schema": { "$ref": "#/entities/AppMeta" },
+      "description": "Métadonnées globales"
+    }
+  }
+}

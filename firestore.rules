@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 256;
+    }
+
+    match /products/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /categories/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /clients/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /suppliers/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /inquiries/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /purchaseOrders/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /receptions/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /saleOrders/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /movements/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /pointsDeVente/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /transactions/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /treasuryAccounts/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /treasuryMovements/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /users/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /auditLogs/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /approvisionnements/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /metadata/{id} {
+      allow read, write: if isValidId(id);
+    }
+    match /test/{id} {
+      allow read, write: if true;
+    }
+  }
+}

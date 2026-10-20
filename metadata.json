@@ -1,0 +1,8 @@
+{
+  "name": "GeStock Pro",
+  "description": "Application de gestion de stock, achats, ventes, caisse et trésorerie pour petits commerces et PME",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
