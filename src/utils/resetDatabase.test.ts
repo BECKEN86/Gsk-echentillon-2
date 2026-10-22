@@ -38,10 +38,20 @@ describe('remise à zéro de la base', () => {
     });
   });
 
-  it('conserve les comptes utilisateurs (dont l\'utilisateur de test)', () => {
+  it('préserve les comptes configurés et ne crée aucun utilisateur par défaut', () => {
     expect(wiped.users).toEqual(db.users);
-    expect(wiped.users.length).toBeGreaterThan(0);
-    expect(wiped.users.some(u => u.username === 'admin')).toBe(true);
+    expect(wiped.users).toEqual([]);
+
+    const configuredUser = {
+      id: 'user-configured',
+      username: 'owner',
+      name: 'Compte principal',
+      role: 'Administrateur' as const,
+      avatarInitials: 'CP',
+      defaultSection: 'accueil' as const,
+      allowedSections: ['accueil' as const]
+    };
+    expect(buildWipedDatabase({ ...db, users: [configuredUser] }).users).toEqual([configuredUser]);
   });
 
   it('conserve la configuration société', () => {

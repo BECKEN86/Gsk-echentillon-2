@@ -1,16 +1,11 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   TrendingUp,
-  BarChart3,
-  Calendar,
-  Layers,
   ArrowUpRight,
   CreditCard,
   Smartphone,
   Banknote,
-  Clock,
-  Sparkles
-} from 'lucide-react';
+  Clock} from 'lucide-react';
 import { SaleOrder } from '../../types';
 import { formatFCFA } from '../../data/initialData';
 import { parseAppDate } from '../../utils/dateUtils';
@@ -89,7 +84,6 @@ export const MonthlySalesChart: React.FC<MonthlySalesChartProps> = ({
   const [chartType, setChartType] = useState<ChartType>('area');
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('12m');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Traitement et agrégation des données par mois
@@ -288,12 +282,10 @@ export const MonthlySalesChart: React.FC<MonthlySalesChartProps> = ({
     });
 
     setHoveredIndex(closestIdx);
-    setMousePos({ x: e.clientX, y: e.clientY });
   };
 
   const handleMouseLeave = () => {
     setHoveredIndex(null);
-    setMousePos(null);
   };
 
   const activeData = hoveredIndex !== null && dataPoints[hoveredIndex] ? dataPoints[hoveredIndex].data : null;
@@ -607,8 +599,6 @@ export const MonthlySalesChart: React.FC<MonthlySalesChartProps> = ({
                 const isHovered = hoveredIndex === idx;
 
                 const d = p.data;
-                const total = d.revenue || 1;
-                const totalHeight = (d.revenue / maxRevenue) * chartH;
                 const baseY = paddingTop + chartH;
 
                 let currentY = baseY;

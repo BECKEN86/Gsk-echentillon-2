@@ -6,24 +6,21 @@ import {
   Plus,
   Minus,
   Search,
-  Filter,
   Calendar,
   CreditCard,
-  Building2,
   FileSpreadsheet,
   Printer,
   Trash2,
   Eye,
-  Clock,
   ArrowUpRight,
   ArrowDownRight,
   Tag,
   Wallet,
   X
 } from 'lucide-react';
-import { FinancialTransaction, TreasuryAccount, UserAccount } from '../../../types';
+import { CompanyConfig, FinancialTransaction, TreasuryAccount, UserAccount } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
-import { generateUniqueId } from '../../../utils/idGenerator';
+import { withProfessionalPrintBranding } from '../../../utils/professionalPrint';
 
 interface RecettesDepensesViewProps {
   transactions: FinancialTransaction[];
@@ -31,6 +28,7 @@ interface RecettesDepensesViewProps {
   onAddTransaction: (tx: Omit<FinancialTransaction, 'id' | 'code'>) => boolean;
   onDeleteTransaction?: (id: string) => void;
   currentUser?: UserAccount | null;
+  companyConfig?: CompanyConfig | null;
 }
 
 const CATEGORIES_RECETTES = [
@@ -59,11 +57,11 @@ export const RecettesDepensesView: React.FC<RecettesDepensesViewProps> = ({
   treasuryAccounts,
   onAddTransaction,
   onDeleteTransaction,
-  currentUser
+  currentUser,
+  companyConfig
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'Tous' | 'Recette' | 'Dépense'>('Tous');
-  const [categoryFilter, setCategoryFilter] = useState<string>('Toutes');
   const [accountFilter, setAccountFilter] = useState<string>('Tous');
 
   // Modal State
@@ -92,12 +90,11 @@ export const RecettesDepensesView: React.FC<RecettesDepensesViewProps> = ({
         tx.date.includes(searchTerm);
 
       const matchType = typeFilter === 'Tous' || tx.type === typeFilter;
-      const matchCategory = categoryFilter === 'Toutes' || tx.category === categoryFilter;
       const matchAccount = accountFilter === 'Tous' || tx.account === accountFilter;
 
-      return matchSearch && matchType && matchCategory && matchAccount;
+      return matchSearch && matchType && matchAccount;
     });
-  }, [transactions, searchTerm, typeFilter, categoryFilter, accountFilter]);
+  }, [transactions, searchTerm, typeFilter, accountFilter]);
 
   // Aggregate KPI Calculations
   const totalRecettes = useMemo(() => {
@@ -327,7 +324,7 @@ export const RecettesDepensesView: React.FC<RecettesDepensesViewProps> = ({
     const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
     if (frameDoc) {
       frameDoc.open();
-      frameDoc.write(htmlContent);
+      frameDoc.write(withProfessionalPrintBranding(htmlContent, companyConfig));
       frameDoc.close();
       setTimeout(() => {
         printFrame.contentWindow?.focus();

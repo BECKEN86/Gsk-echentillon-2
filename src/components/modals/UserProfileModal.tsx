@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   User,
   X,
-  Lock,
   Mail,
   Phone,
   Shield,

@@ -9,8 +9,6 @@ import {
   Edit3, 
   Trash2, 
   X,
-  Building2,
-  Tag,
   List,
   LayoutGrid,
   Eye,
@@ -23,13 +21,14 @@ import {
   AlertTriangle,
   FileSpreadsheet
 } from 'lucide-react';
-import { Supplier } from '../../../types';
+import { CompanyConfig, Supplier } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
 import { SupplierDetailModal } from '../../modals/SupplierDetailModal';
 import { SupplierKanbanView } from './SupplierKanbanView';
 
 interface FournisseursViewProps {
   suppliers: Supplier[];
+  companyConfig?: CompanyConfig | null;
   onAddSupplier: (supplier: Omit<Supplier, 'id' | 'balance'>) => void;
   onUpdateSupplier: (supplier: Supplier) => void;
   onDeleteSupplier: (id: string) => void;
@@ -37,6 +36,7 @@ interface FournisseursViewProps {
 
 export const FournisseursView: React.FC<FournisseursViewProps> = ({
   suppliers,
+  companyConfig,
   onAddSupplier,
   onUpdateSupplier,
   onDeleteSupplier
@@ -179,8 +179,6 @@ export const FournisseursView: React.FC<FournisseursViewProps> = ({
       const emailIdx = headers.findIndex(h => h.includes('mail'));
       const addressIdx = headers.findIndex(h => h.includes('adresse') || h.includes('ville') || h.includes('localisation'));
       const catIdx = headers.findIndex(h => h.includes('cat') || h.includes('secteur'));
-      const debtIdx = headers.findIndex(h => h.includes('credit') || h.includes('dette') || h.includes('solde'));
-
       let importedCount = 0;
 
       for (let i = 1; i < lines.length; i++) {
@@ -191,8 +189,6 @@ export const FournisseursView: React.FC<FournisseursViewProps> = ({
         const email = emailIdx !== -1 && row[emailIdx] ? row[emailIdx] : '';
         const address = addressIdx !== -1 && row[addressIdx] ? row[addressIdx] : 'Abidjan';
         const categories = catIdx !== -1 && row[catIdx] ? row[catIdx].split(/[,/]/).map(c => c.trim()) : ['Alimentation'];
-        const balance = debtIdx !== -1 && !isNaN(Number(row[debtIdx])) ? Number(row[debtIdx]) : 0;
-
         onAddSupplier({
           name,
           contactPerson,
@@ -677,6 +673,7 @@ export const FournisseursView: React.FC<FournisseursViewProps> = ({
       {isDetailModalOpen && selectedDetailSupplier && (
         <SupplierDetailModal
           supplier={selectedDetailSupplier}
+          companyConfig={companyConfig}
           isOpen={isDetailModalOpen}
           onClose={() => {
             setIsDetailModalOpen(false);
@@ -715,7 +712,7 @@ export const FournisseursView: React.FC<FournisseursViewProps> = ({
                   rows={7}
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
-                  placeholder={`Société;Commercial;Téléphone;Email;Adresse;Catégories;Crédit\nSANIA Distribution;M. Bakayoko;+225 27 21 35 40;commandes@sania.ci;Vridi;Alimentation;150000\nSOLIBRA SA;M. Koffi;+225 27 21 21 88;ventes@solibra.ci;Treichville;Boissons;85000`}
+                  placeholder="Société;Commercial;Téléphone;Email;Adresse;Catégories;Crédit"
                   className="w-full p-3 font-mono text-[11px] bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-blue-500"
                 />
               </div>

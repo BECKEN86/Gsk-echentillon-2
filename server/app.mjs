@@ -88,6 +88,26 @@ export async function createApp({ staticDir } = {}) {
   /* Auth                                                             */
   /* ---------------------------------------------------------------- */
 
+  app.get('/api/auth/setup-status', async (_req, res) => {
+    try {
+      res.json({ setupRequired: await auth.isSetupRequired() });
+    } catch (err) {
+      console.error('[GET /api/auth/setup-status]', err);
+      res.status(500).json({ error: 'Erreur de vérification de la configuration' });
+    }
+  });
+
+  app.post('/api/auth/setup', async (req, res) => {
+    try {
+      const result = await auth.setupFirstAdmin(req.body || {});
+      if (result.error) return res.status(result.setupRequired ? 400 : 409).json(result);
+      res.status(201).json(result);
+    } catch (err) {
+      console.error('[POST /api/auth/setup]', err);
+      res.status(500).json({ error: 'Erreur de configuration du compte administrateur' });
+    }
+  });
+
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { username, password } = req.body || {};
@@ -143,6 +163,28 @@ export async function createApp({ staticDir } = {}) {
     }
   });
 
+  app.post('/api/pos/registers/:id/claim', requireSession, async (req, res) => {
+    try {
+      const result = await store.claimCashRegister(req.params.id, req.authUser.id);
+      if (!result.ok) return res.status(409).json({ error: result.error });
+      res.json({ session: result.session, rev: await store.getRev() });
+    } catch (err) {
+      console.error('[POST /api/pos/registers/:id/claim]', err);
+      res.status(500).json({ error: 'Impossible de réserver cette caisse.' });
+    }
+  });
+
+  app.post('/api/pos/registers/:id/release', requireSession, async (req, res) => {
+    try {
+      const result = await store.releaseCashRegister(req.params.id, req.authUser.id);
+      if (!result.ok) return res.status(409).json({ error: result.error });
+      res.json({ rev: await store.getRev() });
+    } catch (err) {
+      console.error('[POST /api/pos/registers/:id/release]', err);
+      res.status(500).json({ error: 'Impossible de libérer cette caisse.' });
+    }
+  });
+
   app.put('/api/db', requireSession, async (req, res) => {
     try {
       const payload = hashUserPasswords(req.body);
@@ -151,7 +193,24 @@ export async function createApp({ staticDir } = {}) {
       }
       // Les sessions sont gérées par le serveur — jamais écrasées par un client
       const current = await store.load();
-      if (current?.sessions) payload.sessions = current.sessions;
+      if (current) {
+        if (current.sessions) payload.sessions = current.sessions;
+        const currentRegisters = new Map(
+          (current.pointsDeVente || []).map(session => [session.id, session])
+        );
+        payload.pointsDeVente = (payload.pointsDeVente || []).map(session => {
+          const stored = currentRegisters.get(session.id);
+          if (session.status !== 'En cours') {
+            const { occupiedBy: _occupiedBy, ...closed } = session;
+            return closed;
+          }
+          if (!stored?.occupiedBy) {
+            const { occupiedBy: _occupiedBy, ...available } = session;
+            return available;
+          }
+          return { ...session, occupiedBy: stored.occupiedBy };
+        });
+      }
       const records = await store.save(payload);
       const rev = await store.getRev();
       res.json({ ok: true, records, rev });

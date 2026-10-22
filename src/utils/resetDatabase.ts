@@ -5,8 +5,8 @@ import { AppDatabase } from '../services/storageService';
  *
  * Toutes les collections métier sont vidées et les compteurs de numérotation
  * repartent de zéro. Sont conservés, car indispensables au fonctionnement :
- * - `users` : les comptes utilisateurs (dont l'utilisateur de test/admin) —
- *   sans eux, plus personne ne pourrait se connecter après la purge ;
+ * - `users` : les comptes configurés — sans eux, plus personne ne pourrait se
+ *   connecter après la purge ;
  * - `companyConfig` : l'identité de la société imprimée sur les documents.
  *
  * Le journal d'audit est vidé également ; l'application y réécrit immédiatement

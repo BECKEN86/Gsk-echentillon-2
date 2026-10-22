@@ -5,10 +5,7 @@ import {
   Calendar,
   Clock,
   User,
-  DollarSign,
-  AlertCircle,
   CheckCircle2,
-  FileText,
   AlertTriangle,
   Lock,
   Unlock,
@@ -22,6 +19,7 @@ interface PointDeVenteOpenModalProps {
   onClose: () => void;
   nextCode: string; // e.g. "PV0003"
   defaultOperator?: string;
+  lockOperator?: boolean;
   onConfirmOpen: (data: {
     code: string;
     date: string;
@@ -36,13 +34,14 @@ export const PointDeVenteOpenModal: React.FC<PointDeVenteOpenModalProps> = ({
   isOpen,
   onClose,
   nextCode,
-  defaultOperator = 'Kouassi Marc',
+  defaultOperator = '',
+  lockOperator = false,
   onConfirmOpen
 }) => {
   const [code, setCode] = useState(nextCode);
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [operator, setOperator] = useState(defaultOperator);
-  const [openingAmount, setOpeningAmount] = useState<number>(50000);
+  const [openingAmount, setOpeningAmount] = useState<number>(0);
   const [openedAt, setOpenedAt] = useState(() => {
     const now = new Date();
     const d = now.toISOString().split('T')[0];
@@ -138,8 +137,9 @@ export const PointDeVenteOpenModal: React.FC<PointDeVenteOpenModalProps> = ({
               required
               value={operator}
               onChange={(e) => setOperator(e.target.value)}
+              readOnly={lockOperator}
               placeholder="Nom de l'opérateur ou caissier"
-              className="w-full px-3 py-2 bg-white text-slate-800 font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+              className={`w-full px-3 py-2 text-slate-800 font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 ${lockOperator ? 'bg-slate-100 cursor-not-allowed' : 'bg-white'}`}
             />
           </div>
 
@@ -238,7 +238,6 @@ export const PointDeVenteCloseModal: React.FC<PointDeVenteCloseModalProps> = ({
 
   // Calcul des ventes de la session
   const totalSalesCount = pv.sales?.length || 0;
-  const totalSalesAmount = pv.sales?.reduce((s, o) => s + (o.finalAmount || o.totalAmount), 0) || 0;
   const cashSalesAmount = pv.sales
     ?.filter(o => o.paymentMethod === 'Espèces')
     .reduce((s, o) => s + (o.finalAmount || o.totalAmount), 0) || 0;

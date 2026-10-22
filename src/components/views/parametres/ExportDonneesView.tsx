@@ -51,8 +51,6 @@ declare global {
   }
 }
 
-const today = formatAppDate();
-
 export const ExportDonneesView: React.FC<ExportDonneesViewProps> = ({
   db,
   companyConfig,

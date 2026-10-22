@@ -28,7 +28,7 @@ node -v
 echo.
 
 REM ---- 2. Installation des dependances
-echo [1/3] Installation des dependances npm...
+echo [1/2] Installation des dependances npm...
 call npm install
 if errorlevel 1 (
   echo [ERREUR] Echec de npm install.
@@ -38,7 +38,7 @@ if errorlevel 1 (
 echo.
 
 REM ---- 3. Construction de l'application web
-echo [2/3] Compilation de l'application (vite build)...
+echo [2/2] Compilation de l'application (vite build)...
 call npm run build
 if errorlevel 1 (
   echo [ERREUR] Echec de la compilation.
@@ -47,22 +47,11 @@ if errorlevel 1 (
 )
 echo.
 
-REM ---- 4. Base SQLite + compte administrateur
-echo [3/3] Creation de la base SQLite et du compte admin...
-node server\seed-admin.mjs
-if errorlevel 1 (
-  echo [ERREUR] Echec de l'initialisation de la base.
-  pause
-  exit /b 1
-)
-echo.
-
 echo ==============================================================
 echo   Installation terminee.
 echo.
-echo   Base de donnees : server\data\gestock.db  (SQLite)
-echo   Identifiant     : admin
-echo   Mot de passe    : admin123
+echo   La base SQLite sera creee au premier lancement.
+echo   Vous configurerez le compte administrateur dans l'application.
 echo.
 echo   Lancement : double-cliquez sur start-gestock.bat
 echo   puis ouvrez http://localhost:8787

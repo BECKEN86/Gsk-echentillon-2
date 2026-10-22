@@ -42,6 +42,7 @@ import {
 import { formatFCFA } from '../../../data/initialData';
 import { formatAppDate, formatAppDateTime } from '../../../utils/dateUtils';
 import { computeStockValuation } from '../../../utils/stockValuation';
+import { withProfessionalPrintBranding } from '../../../utils/professionalPrint';
 import {
   DISCREPANCY_REASONS,
   refreshLine,
@@ -114,7 +115,6 @@ export const InventairePhysiqueView: React.FC<InventairePhysiqueViewProps> = ({
   const [selected, setSelected] = useState<PhysicalInventory | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [form, setForm] = useState(emptyForm());
-  const [searchTerm, setSearchTerm] = useState('');
   const [lineSearch, setLineSearch] = useState('');
   const [gapFilter, setGapFilter] = useState<'ALL' | 'GAP+' | 'GAP-' | 'OK' | 'UNCOUNTED'>('ALL');
   const [quickAdd, setQuickAdd] = useState('');
@@ -390,7 +390,7 @@ export const InventairePhysiqueView: React.FC<InventairePhysiqueViewProps> = ({
     </body></html>`;
     const w = window.open('', '_blank', 'width=1100,height=800');
     if (!w) return;
-    w.document.write(html);
+    w.document.write(withProfessionalPrintBranding(html, companyConfig));
     w.document.close();
   };
 
@@ -829,7 +829,7 @@ export const InventairePhysiqueView: React.FC<InventairePhysiqueViewProps> = ({
               </div>
               <div>
                 <label className="block font-semibold text-slate-500 uppercase mb-1">Équipe de comptage</label>
-                <input type="text" value={form.team} onChange={e => setForm({ ...form, team: e.target.value })} placeholder="Ex: Kouassi M., Traoré A." className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-medium" />
+                <input type="text" value={form.team} onChange={e => setForm({ ...form, team: e.target.value })} placeholder="Noms des membres de l'équipe" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-medium" />
               </div>
               <div className="col-span-2">
                 <label className="block font-semibold text-slate-500 uppercase mb-1">Observations</label>

@@ -27,6 +27,7 @@ export const ALL_SECTIONS: NavSection[] = [
   'finance-tresorerie-caisses',
   'parametres-utilisateurs',
   'parametres-configuration',
+  'parametres-import',
   'parametres-export',
   'parametres-audit',
   'guide-utilisateur'
@@ -67,69 +68,9 @@ export const DEFAULT_SECTION_BY_ROLE: Record<UserRole, NavSection> = {
   'Responsable Agence': 'vente-sessions'
 };
 
-export const DEMO_USERS: UserAccount[] = [
-  {
-    id: 'user-admin',
-    username: 'admin',
-    password: 'admin123',
-    name: 'Alexandre Diallo',
-    role: 'Administrateur',
-    email: 'admin@gestock.ci',
-    avatarInitials: 'AD',
-    defaultSection: 'accueil',
-    allowedSections: ALL_SECTIONS
-  },
-  {
-    id: 'user-gerant',
-    username: 'gerant',
-    password: 'gerant123',
-    name: 'Awa Cissé',
-    role: 'Gérant',
-    email: 'awa.cisse@gestock.ci',
-    avatarInitials: 'AC',
-    defaultSection: 'finance-marges-resultat',
-    allowedSections: ALL_SECTIONS
-  },
-  {
-    id: 'user-caissier',
-    username: 'caissier',
-    password: 'caisse123',
-    name: 'Moussa Koné',
-    role: 'Caissier',
-    email: 'moussa.k@gestock.ci',
-    avatarInitials: 'MK',
-    defaultSection: 'vente-pos',
-    allowedSections: [
-      'vente-pos'
-    ]
-  },
-  {
-    id: 'user-agence',
-    username: 'agence',
-    password: 'agence123',
-    name: 'Kouassi Marc',
-    role: 'Responsable Agence',
-    email: 'kouassi.m@gestock.ci',
-    avatarInitials: 'KM',
-    defaultSection: 'vente-sessions',
-    allowedSections: [
-      'vente-sessions',
-      'vente-pos',
-      'vente-commande',
-      'inventaire-produits',
-      'inventaire-approvisionnement',
-      'inventaire-magasins',
-      'inventaire-ajustement',
-      'acteurs-clients',
-      'acteurs-fournisseurs',
-      'finance-tresorerie-caisses'
-    ]
-  }
-];
-
 const AUTH_STORAGE_KEY = 'gestock_current_user_v1';
 
-export function getStoredUser(directory: UserAccount[] = DEMO_USERS): UserAccount | null {
+export function getStoredUser(directory: UserAccount[] = []): UserAccount | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -185,7 +126,7 @@ export interface AuthResult {
   migration?: { userId: string; passwordHash: string };
 }
 
-export async function authenticate(username: string, password: string, directory: UserAccount[] = DEMO_USERS): Promise<AuthResult> {
+export async function authenticate(username: string, password: string, directory: UserAccount[] = []): Promise<AuthResult> {
   const cleanUsername = username.trim().toLowerCase();
   const found = directory.find(u => u.username.toLowerCase() === cleanUsername);
 

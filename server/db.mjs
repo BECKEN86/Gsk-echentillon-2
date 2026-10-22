@@ -127,9 +127,88 @@ export async function createStore() {
 
     async upsert(collection, id, data) {
       if (!COLLECTIONS.includes(collection)) throw new Error(`Collection inconnue : ${collection}`);
+      if (collection === 'pointsDeVente') {
+        const currentRow = db.prepare(
+          'SELECT data FROM documents WHERE collection = ? AND id = ?'
+        ).get(collection, String(id));
+        if (currentRow) {
+          const current = JSON.parse(currentRow.data);
+          if (data.status === 'En cours') {
+            data = current.occupiedBy
+              ? { ...data, occupiedBy: current.occupiedBy }
+              : Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'occupiedBy'));
+          } else {
+            data = Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'occupiedBy'));
+          }
+        }
+      }
       db.prepare('INSERT OR REPLACE INTO documents (collection, id, data) VALUES (?, ?, ?)')
         .run(collection, String(id), JSON.stringify(data));
       bumpRev();
+    },
+
+    async claimCashRegister(id, userId) {
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        const row = db.prepare(
+          'SELECT data FROM documents WHERE collection = ? AND id = ?'
+        ).get('pointsDeVente', String(id));
+        if (!row) {
+          db.exec('ROLLBACK');
+          return { ok: false, error: 'Caisse introuvable.' };
+        }
+
+        const session = JSON.parse(row.data);
+        if (session.status !== 'En cours') {
+          db.exec('ROLLBACK');
+          return { ok: false, error: 'Cette caisse n’est pas ouverte.' };
+        }
+        if (session.occupiedBy && session.occupiedBy !== userId) {
+          db.exec('ROLLBACK');
+          return { ok: false, error: 'Cette caisse est déjà utilisée par un autre caissier.' };
+        }
+
+        const claimed = { ...session, occupiedBy: userId };
+        db.prepare(
+          'UPDATE documents SET data = ? WHERE collection = ? AND id = ?'
+        ).run(JSON.stringify(claimed), 'pointsDeVente', String(id));
+        bumpRev();
+        db.exec('COMMIT');
+        return { ok: true, session: claimed };
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
+      }
+    },
+
+    async releaseCashRegister(id, userId) {
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        const row = db.prepare(
+          'SELECT data FROM documents WHERE collection = ? AND id = ?'
+        ).get('pointsDeVente', String(id));
+        if (!row) {
+          db.exec('COMMIT');
+          return { ok: true };
+        }
+
+        const session = JSON.parse(row.data);
+        if (session.occupiedBy !== userId) {
+          db.exec('COMMIT');
+          return { ok: false, error: 'Cette caisse est réservée à un autre utilisateur.' };
+        }
+
+        const { occupiedBy: _occupiedBy, ...released } = session;
+        db.prepare(
+          'UPDATE documents SET data = ? WHERE collection = ? AND id = ?'
+        ).run(JSON.stringify(released), 'pointsDeVente', String(id));
+        bumpRev();
+        db.exec('COMMIT');
+        return { ok: true };
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
+      }
     },
 
     async remove(collection, id) {
@@ -167,6 +246,10 @@ export async function createStore() {
       const counts = {};
       for (const r of rows) counts[r.collection] = r.n;
       return { counts, path: DB_PATH };
+    },
+
+    close() {
+      db.close();
     }
   };
 }

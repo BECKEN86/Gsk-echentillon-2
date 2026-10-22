@@ -8,11 +8,8 @@ import {
   DollarSign,
   AlertCircle,
   Clock,
-  ShieldCheck,
   Receipt,
-  Layers,
-  ArrowRight
-} from 'lucide-react';
+  } from 'lucide-react';
 import { PurchaseOrder, Supplier, PurchaseOrderSupplierSettlement } from '../../types';
 import { formatFCFA } from '../../data/initialData';
 
@@ -290,7 +287,7 @@ export const PurchaseOrderPaymentModal: React.FC<PurchaseOrderPaymentModalProps>
                 Acheteur
               </span>
               <p className="text-xs font-bold text-slate-800 py-2">
-                {po.buyer || 'Kouassi Marc'}
+                {po.buyer || '—'}
               </p>
             </div>
 

@@ -12,21 +12,18 @@ import {
   History,
   Plus,
   CheckCircle2,
-  AlertCircle,
-  Clock,
   RotateCcw,
   Receipt,
-  Calendar,
   Wallet,
   Tag,
-  DollarSign,
-  FileText
-} from 'lucide-react';
-import { Supplier, SupplierCreditLine, SupplierAvoirLine, CreditPayment, AvoirRefund } from '../../types';
+  DollarSign} from 'lucide-react';
+import { CompanyConfig, Supplier, SupplierCreditLine, SupplierAvoirLine, CreditPayment, AvoirRefund } from '../../types';
 import { formatFCFA } from '../../data/initialData';
+import { withProfessionalPrintBranding } from '../../utils/professionalPrint';
 
 interface SupplierDetailModalProps {
   supplier: Supplier | null;
+  companyConfig?: CompanyConfig | null;
   isOpen: boolean;
   onClose: () => void;
   onEditSupplier: (supplier: Supplier) => void;
@@ -35,6 +32,7 @@ interface SupplierDetailModalProps {
 
 export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
   supplier,
+  companyConfig,
   isOpen,
   onClose,
   onUpdateSupplier
@@ -49,14 +47,14 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
   // Sub-modal for adding payment to credit line
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
-  const [paymentOperator, setPaymentOperator] = useState<string>('Awa Cissé');
+  const [paymentOperator, setPaymentOperator] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('Virement bancaire');
   const [paymentRef, setPaymentRef] = useState<string>('');
 
   // Sub-modal for adding refund to avoir line
   const [isAddRefundOpen, setIsAddRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState<number>(0);
-  const [refundOperator, setRefundOperator] = useState<string>('Awa Cissé');
+  const [refundOperator, setRefundOperator] = useState<string>('');
   const [refundMethod, setRefundMethod] = useState<string>('Déduction sur facture');
   const [refundNote, setRefundNote] = useState<string>('');
 
@@ -157,7 +155,7 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
       date: formattedDate,
       amount: amountToApply,
       remainingAmount: newRemaining,
-      operator: paymentOperator.trim() || 'Awa Cissé',
+      operator: paymentOperator.trim(),
       paymentMethod,
       reference: paymentRef.trim() || `VIR-${Math.floor(1000 + Math.random() * 9000)}`
     };
@@ -241,7 +239,7 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
       date: formattedDate,
       amount: amountToApply,
       remainingBalance: newBalance,
-      operator: refundOperator.trim() || 'Awa Cissé',
+      operator: refundOperator.trim(),
       refundMethod,
       notes: refundNote.trim() || 'Déduit sur facture / Règlement'
     };
@@ -311,7 +309,7 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
       <div class="sign"><span>Signature fournisseur</span><span>Signature caissier</span></div>
       <div class="footer">Document généré le ${new Date().toLocaleString('fr-FR')} — GeStock</div>
       </body></html>`;
-    printWindow.document.write(html);
+    printWindow.document.write(withProfessionalPrintBranding(html, companyConfig, 'receipt'));
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
@@ -370,7 +368,7 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
       </tbody></table>
       <div class="footer">Document généré le ${new Date().toLocaleString('fr-FR')} — GeStock</div>
       </body></html>`;
-    printWindow.document.write(html);
+    printWindow.document.write(withProfessionalPrintBranding(html, companyConfig));
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();

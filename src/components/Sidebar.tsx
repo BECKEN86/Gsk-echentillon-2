@@ -19,18 +19,11 @@ import {
   Scale,
   Wallet,
   ChevronDown, 
-  ChevronRight, 
   ArrowRightLeft,
   AlertTriangle,
   Menu, 
   X, 
   Search,
-  Database,
-  Layers,
-  Sparkles,
-  Command,
-  ArrowRight,
-  ShieldCheck,
   LogOut,
   Settings,
   UserCog,
@@ -38,6 +31,7 @@ import {
   ScrollText,
   FileSpreadsheet,
   BookOpen,
+  Upload,
   Undo2,
   CalendarClock
 } from 'lucide-react';
@@ -64,6 +58,7 @@ interface NavSubItem {
   id: NavSection;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  action?: () => void;
   badge?: number | string;
   badgeType?: 'danger' | 'success' | 'warning' | 'info';
   description?: string;
@@ -350,6 +345,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           description: 'Raison sociale, logo, RCCM/NCC'
         },
         {
+          id: 'parametres-import',
+          label: 'Importer',
+          icon: Upload,
+          action: () => onOpenDatabaseManager?.(),
+          description: 'Importer une base de données depuis une sauvegarde JSON'
+        },
+        {
           id: 'parametres-export',
           label: 'Savegarder',
           icon: FileSpreadsheet,
@@ -363,7 +365,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }
       ]
     }
-  ], [lowStockCount, pendingOrdersCount, activeSessionsCount]);
+  ], [lowStockCount, pendingOrdersCount, activeSessionsCount, onOpenDatabaseManager]);
 
   // Filter navigation items by active user role permissions
   const navGroups: NavGroup[] = useMemo(() => {
@@ -451,7 +453,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         key={item.id}
         type="button"
-        onClick={() => handleNavClick(item.id)}
+        onClick={() => {
+          if (item.action) {
+            item.action();
+            if (isOpenMobile) onCloseMobile();
+            return;
+          }
+          handleNavClick(item.id);
+        }}
         className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 group relative text-left ${
           isActive
             ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200 shadow-2xs'

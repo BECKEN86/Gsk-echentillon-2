@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
 import { 
-  Package, 
   AlertTriangle, 
-  CheckCircle, 
   Edit3, 
   Trash2, 
   Barcode, 
-  ShoppingBag, 
-  Truck,
   CheckSquare,
   Square,
   Layers,
-  ArrowUpDown,
   Eye
 } from 'lucide-react';
 import { Product, ProductCategory } from '../../../types';

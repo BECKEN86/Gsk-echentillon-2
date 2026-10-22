@@ -25,24 +25,6 @@ import {
   CustomerReturn,
   SupplierReturn
 } from '../types';
-import { DEMO_USERS } from './authService';
-import {
-  INITIAL_PRODUCTS,
-  INITIAL_CATEGORIES,
-  INITIAL_MOVEMENTS,
-  INITIAL_CLIENTS,
-  INITIAL_SUPPLIERS,
-  INITIAL_PRICE_INQUIRIES,
-  INITIAL_PURCHASE_ORDERS,
-  INITIAL_GOODS_RECEPTIONS,
-  INITIAL_SALE_ORDERS,
-  INITIAL_POINTS_DE_VENTE,
-  INITIAL_TRANSACTIONS,
-  INITIAL_TREASURY_ACCOUNTS,
-  INITIAL_TREASURY_MOVEMENTS,
-  INITIAL_APPROVISIONNEMENTS,
-  INITIAL_STORAGE_SITES
-} from '../data/initialData';
 
 export interface AppDatabase {
   version: number;
@@ -119,22 +101,22 @@ export function getDefaultDatabase(): AppDatabase {
     version: 1,
     lastUpdated: new Date().toISOString(),
     counters: {},
-    products: INITIAL_PRODUCTS,
-    categories: INITIAL_CATEGORIES,
-    movements: INITIAL_MOVEMENTS,
-    clients: INITIAL_CLIENTS,
-    suppliers: INITIAL_SUPPLIERS,
-    inquiries: INITIAL_PRICE_INQUIRIES,
-    purchaseOrders: INITIAL_PURCHASE_ORDERS,
-    receptions: INITIAL_GOODS_RECEPTIONS,
-    approvisionnements: INITIAL_APPROVISIONNEMENTS,
-    storageSites: INITIAL_STORAGE_SITES,
-    saleOrders: INITIAL_SALE_ORDERS,
-    pointsDeVente: INITIAL_POINTS_DE_VENTE,
-    transactions: INITIAL_TRANSACTIONS,
-    treasuryAccounts: INITIAL_TREASURY_ACCOUNTS,
-    treasuryMovements: INITIAL_TREASURY_MOVEMENTS,
-    users: DEMO_USERS,
+    products: [],
+    categories: [],
+    movements: [],
+    clients: [],
+    suppliers: [],
+    inquiries: [],
+    purchaseOrders: [],
+    receptions: [],
+    approvisionnements: [],
+    storageSites: [],
+    saleOrders: [],
+    pointsDeVente: [],
+    transactions: [],
+    treasuryAccounts: [],
+    treasuryMovements: [],
+    users: [],
     auditLogs: [],
     valuations: [],
     physicalInventories: [],
@@ -183,15 +165,14 @@ export function normalizeDatabase(parsed: Partial<AppDatabase>): AppDatabase {
     inquiries: read<PriceInquiry>('inquiries'),
     purchaseOrders: read<PurchaseOrder>('purchaseOrders'),
     receptions: read<GoodsReception>('receptions'),
-    approvisionnements: storedAppro.length > 0 ? storedAppro : INITIAL_APPROVISIONNEMENTS,
+    approvisionnements: storedAppro,
     storageSites: read<StorageSite>('storageSites'),
     saleOrders,
     pointsDeVente: pointsDeVente.map(pv => ({ ...pv, sales: [] })),
     transactions: read<FinancialTransaction>('transactions'),
     treasuryAccounts: read<TreasuryAccount>('treasuryAccounts'),
     treasuryMovements: read<TreasuryMovement>('treasuryMovements'),
-    // Comptes de démonstration injectés si l'annuaire est absent d'une ancienne sauvegarde
-    users: storedUsers.length > 0 ? storedUsers : DEMO_USERS,
+    users: storedUsers,
     auditLogs: read<AuditLog>('auditLogs'),
     valuations: read<StockValuationRecord>('valuations'),
     physicalInventories: read<PhysicalInventory>('physicalInventories'),
@@ -251,19 +232,10 @@ export function getEmptyDatabase(): AppDatabase {
 export function clearLocalDatabaseCache(): void {
   if (typeof window === 'undefined') return;
   try {
-    // Purge exhaustive : toutes les clés gestock_* sont effacées sauf le jeton
-    // de session serveur — plus aucune donnée métier ne subsiste dans le
-    // navigateur (ancienne base, utilisateur en cache, résidus d'anciennes versions).
-    const doomed: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('gestock_') && key !== 'gestock_session_token') {
-        doomed.push(key);
-      }
-    }
-    doomed.forEach(key => localStorage.removeItem(key));
-  } catch {
-    /* stockage indisponible */
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('gestock_current_user_v1');
+  } catch (error) {
+    console.error('Erreur lors du nettoyage du cache local de la base:', error);
   }
 }
 
@@ -282,7 +254,7 @@ export function loadDatabase(): AppDatabase {
 
     return normalizeDatabase(JSON.parse(raw) as Partial<AppDatabase>);
   } catch (error) {
-    console.error('Erreur de lecture de la base locale, restauration des données par défaut:', error);
+    console.error('Erreur de lecture de la base locale, chargement d’une base vide:', error);
     return getDefaultDatabase();
   }
 }

@@ -3,27 +3,19 @@ import {
   Store,
   Plus,
   Search,
-  Filter,
   Calendar,
   Clock,
-  User,
   DollarSign,
   Lock,
   Unlock,
   Eye,
-  CheckCircle2,
-  AlertCircle,
   FileSpreadsheet,
   Printer,
   ShoppingBag,
   CreditCard,
-  ArrowRight,
   TrendingUp,
-  Receipt,
   CheckSquare,
-  Square,
-  ChevronDown
-} from 'lucide-react';
+  Square} from 'lucide-react';
 import { CompanyConfig, PointDeVente, SaleOrder } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
 import { PointDeVenteOpenModal, PointDeVenteCloseModal } from '../../modals/PointDeVenteModal';

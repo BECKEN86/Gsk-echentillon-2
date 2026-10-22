@@ -25,7 +25,6 @@ import {
   Edit,
   Check,
   AlertCircle,
-  ReceiptText,
   Copy
 } from 'lucide-react';
 import { 
@@ -43,6 +42,7 @@ import {
 import { formatFCFA } from '../../../data/initialData';
 import { purchaseLineQty } from '../../../utils/purchaseCalc';
 import { BonCommandeDetailModal } from '../../modals/BonCommandeDetailModal';
+import { withProfessionalPrintBranding } from '../../../utils/professionalPrint';
 import { PurchaseOrderPaymentModal } from '../../modals/PurchaseOrderPaymentModal';
 
 interface BonCommandeViewProps {
@@ -119,7 +119,6 @@ export const BonCommandeView: React.FC<BonCommandeViewProps> = ({
   const [editingPO, setEditingPO] = useState<PurchaseOrder | null>(null);
   const [selectedSourceInquiry, setSelectedSourceInquiry] = useState<PriceInquiry | null>(null);
   const [inquirySearchTerm, setInquirySearchTerm] = useState('');
-  const [actionWarning, setActionWarning] = useState<string | null>(null);
 
   // Delete confirmations
   const [poToDelete, setPoToDelete] = useState<PurchaseOrder | null>(null);
@@ -584,7 +583,7 @@ export const BonCommandeView: React.FC<BonCommandeViewProps> = ({
   // Ouvrir la modification d'un bon de commande (uniquement si En cours)
   const handleOpenEditPO = (po: PurchaseOrder) => {
     if (po.status !== 'En cours') {
-      setActionWarning("Seuls les bons de commande avec le statut 'En cours' peuvent être modifiés.");
+      alert("Seuls les bons de commande avec le statut 'En cours' peuvent être modifiés.");
       return;
     }
     setEditingPO(po);
@@ -621,7 +620,7 @@ export const BonCommandeView: React.FC<BonCommandeViewProps> = ({
   // Dupliquer un bon de commande (uniquement si Validé)
   const handleDuplicatePOClick = (po: PurchaseOrder) => {
     if (po.status !== 'Validé') {
-      setActionWarning("Seuls les bons de commande déjà validés peuvent être dupliqués.");
+      alert("Seuls les bons de commande déjà validés peuvent être dupliqués.");
       return;
     }
     if (onDuplicatePurchaseOrder) {
@@ -888,7 +887,7 @@ export const BonCommandeView: React.FC<BonCommandeViewProps> = ({
     const doc = iframe.contentWindow?.document || iframe.contentDocument;
     if (doc) {
       doc.open();
-      doc.write(htmlContent);
+      doc.write(withProfessionalPrintBranding(htmlContent, companyConfig));
       doc.close();
 
       setTimeout(() => {
@@ -2008,6 +2007,7 @@ export const BonCommandeView: React.FC<BonCommandeViewProps> = ({
           supplier={suppliers.find(s => s.id === selectedPODetail.supplierId)}
           inquiry={inquiries.find(i => i.id === selectedPODetail.inquiryId || i.code === selectedPODetail.inquiryCode)}
           companyConfig={companyConfig}
+          products={products}
           onClose={() => setSelectedPODetail(null)}
           onValidatePO={(poToVal) => {
             // Ouvrir la fiche de règlement et mode de paiement

@@ -44,6 +44,7 @@ import {
 import { formatFCFA } from '../../../data/initialData';
 import { formatAppDate, formatAppDateTime } from '../../../utils/dateUtils';
 import { computeStockValuation, VALUATION_METHOD_LABELS } from '../../../utils/stockValuation';
+import { withProfessionalPrintBranding } from '../../../utils/professionalPrint';
 
 const PAGE_SIZE = 25;
 
@@ -309,7 +310,7 @@ export const ValorisationStockView: React.FC<ValorisationStockViewProps> = ({
   const openReport = (lines: StockValuationLine[], meta: { date: string; method: ValuationMethod }, record?: StockValuationRecord) => {
     const w = window.open('', '_blank', 'width=1100,height=800');
     if (!w) return;
-    w.document.write(buildReportHtml(lines, meta, record));
+    w.document.write(withProfessionalPrintBranding(buildReportHtml(lines, meta, record), companyConfig));
     w.document.close();
   };
 

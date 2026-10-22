@@ -194,6 +194,7 @@ export const RetoursFournisseursView: React.FC<RetoursFournisseursViewProps> = (
       title: 'RETOURS FOURNISSEURS',
       subtitle: `${filteredList.length} document(s)`,
       company: companyConfig,
+      professionalBranding: true,
       columns: ['N° Retour', 'Date', 'Fournisseur', 'Réf. source', 'Qté', 'Montant', 'Avoir', 'Statut'],
       rows: filteredList.map(r => [
         r.code, r.date, r.supplierName, r.sourceRef || '—',

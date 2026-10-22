@@ -3,11 +3,9 @@ import {
   FileText, 
   Plus, 
   Search, 
-  ArrowRight, 
   X,
   CheckSquare,
   Square,
-  Eye,
   Trash2,
   Download,
   Building2,
@@ -20,7 +18,6 @@ import {
   DollarSign,
   User,
   Barcode,
-  Percent,
   Package,
   Edit,
   Check,
@@ -28,10 +25,11 @@ import {
   Copy,
   AlertTriangle
 } from 'lucide-react';
-import { PriceInquiry, PriceInquiryItem, Supplier, Product, OperationalUnit, STORAGE_CONTAINER_UNITS, UserAccount } from '../../../types';
+import { CompanyConfig, PriceInquiry, PriceInquiryItem, Supplier, Product, OperationalUnit, STORAGE_CONTAINER_UNITS, UserAccount } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
 import { purchaseLineQty } from '../../../utils/purchaseCalc';
 import { DemandePrixDetailModal } from '../../modals/DemandePrixDetailModal';
+import { withProfessionalPrintBranding } from '../../../utils/professionalPrint';
 
 interface DemandePrixViewProps {
   inquiries: PriceInquiry[];
@@ -43,10 +41,10 @@ interface DemandePrixViewProps {
   onConvertToPurchaseOrder: (inquiry: PriceInquiry) => void;
   onDeleteInquiry?: (id: string) => void;
   onDeleteMultipleInquiries?: (ids: string[]) => void;
-  onUpdateInquiryStatus?: (id: string, status: PriceInquiry['status']) => void;
   onAddProduct?: (product: Omit<Product, 'id'>) => void;
   onUpdateProduct?: (product: Product) => void;
   currentUser?: UserAccount | null;
+  companyConfig?: CompanyConfig | null;
 }
 
 interface NewInquiryItemForm {
@@ -73,10 +71,10 @@ export const DemandePrixView: React.FC<DemandePrixViewProps> = ({
   onConvertToPurchaseOrder,
   onDeleteInquiry,
   onDeleteMultipleInquiries,
-  onUpdateInquiryStatus,
   onAddProduct,
   onUpdateProduct,
-  currentUser
+  currentUser,
+  companyConfig
 }) => {
   // Filter & Search states
   const [searchTerm, setSearchTerm] = useState('');
@@ -931,7 +929,7 @@ export const DemandePrixView: React.FC<DemandePrixViewProps> = ({
     const printDoc = printIframe.contentWindow?.document;
     if (printDoc) {
       printDoc.open();
-      printDoc.write(htmlContent);
+      printDoc.write(withProfessionalPrintBranding(htmlContent, companyConfig));
       printDoc.close();
       setTimeout(() => {
         try {
@@ -1342,6 +1340,7 @@ export const DemandePrixView: React.FC<DemandePrixViewProps> = ({
         <DemandePrixDetailModal
           inquiry={detailInquiry}
           supplier={suppliers.find(s => s.id === detailInquiry.supplierId)}
+          companyConfig={companyConfig}
           onClose={() => setDetailInquiry(null)}
           onConvertToPurchaseOrder={(inquiry) => {
             setDetailInquiry(null);
@@ -1948,7 +1947,7 @@ export const DemandePrixView: React.FC<DemandePrixViewProps> = ({
                   required
                   value={productModalState.name}
                   onChange={(e) => setProductModalState(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="ex: Riz Parfumé 25kg"
+                  placeholder="Nom du produit"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:border-blue-500"
                 />
               </div>

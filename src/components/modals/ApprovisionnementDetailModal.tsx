@@ -5,19 +5,16 @@ import {
   Calendar,
   User,
   ReceiptText,
-  Building2,
   MapPin,
-  CheckCircle2,
   Printer,
   Layers,
   Barcode,
-  Package,
-  Clock,
   ShieldCheck,
   Trash2
 } from 'lucide-react';
 import { ApprovisionnementRecord, CompanyConfig } from '../../types';
 import { formatFCFA } from '../../data/initialData';
+import { withProfessionalPrintBranding } from '../../utils/professionalPrint';
 
 interface ApprovisionnementDetailModalProps {
   appro: ApprovisionnementRecord;
@@ -295,7 +292,7 @@ export const ApprovisionnementDetailModal: React.FC<ApprovisionnementDetailModal
       </html>
     `;
 
-    printWindow.document.write(html);
+    printWindow.document.write(withProfessionalPrintBranding(html, companyConfig));
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => {

@@ -9,9 +9,7 @@ import {
   X,
   Package,
   Warehouse,
-  AlertCircle,
-  CheckCircle2
-} from 'lucide-react';
+  AlertCircle} from 'lucide-react';
 import { StorageSite, UserAccount } from '../../../types';
 
 interface MagasinsViewProps {
@@ -324,7 +322,7 @@ export const MagasinsView: React.FC<MagasinsViewProps> = ({
                   type="text"
                   value={formName}
                   onChange={e => setFormName(e.target.value)}
-                  placeholder={formType === 'Magasin' ? 'Ex : Magasin Central' : 'Ex : Rayon Boissons'}
+                  placeholder={formType === 'Magasin' ? 'Nom du magasin' : 'Nom du rayon'}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all"
                 />
               </div>

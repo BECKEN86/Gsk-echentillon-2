@@ -14,8 +14,8 @@ describe('scrypt password hashing', () => {
   });
 
   it('vérifie les mots de passe legacy en clair (migration douce)', () => {
-    expect(verifyPassword('admin123', 'admin123')).toBe(true);
-    expect(verifyPassword('autre', 'admin123')).toBe(false);
+    expect(verifyPassword('legacy-test-password', 'legacy-test-password')).toBe(true);
+    expect(verifyPassword('other-password', 'legacy-test-password')).toBe(false);
   });
 });
 
@@ -33,12 +33,12 @@ describe('createAuth — login flow', () => {
 
   it('login OK retourne un token et l\'utilisateur sans mot de passe', async () => {
     const store = mkStore([
-      { id: 'u1', username: 'admin', password: 'admin123', name: 'Admin', role: 'Administrateur' }
+      { id: 'u1', username: 'test-admin', password: 'legacy-test-password', name: 'Test Admin', role: 'Administrateur' }
     ]);
     const auth = createAuth(store);
-    const res = await auth.login('admin', 'admin123');
+    const res = await auth.login('test-admin', 'legacy-test-password');
     expect(res.token).toBeTruthy();
-    expect(res.user.username).toBe('admin');
+    expect(res.user.username).toBe('test-admin');
     expect(res.user.password).toBeUndefined();
     expect(res.user.passwordHash).toBeUndefined();
     // Le mot de passe en clair a été migré vers un hash
@@ -48,7 +48,7 @@ describe('createAuth — login flow', () => {
 
   it('mauvais mot de passe / utilisateur inconnu → erreur', async () => {
     const auth = createAuth(
-      mkStore([{ id: 'u1', username: 'admin', password: 'admin123', name: 'A', role: 'Administrateur' }])
+      mkStore([{ id: 'u1', username: 'test-admin', password: 'legacy-test-password', name: 'Test', role: 'Administrateur' }])
     );
     expect((await auth.login('admin', 'wrong')).error).toBeTruthy();
     expect((await auth.login('ghost', 'x')).error).toBeTruthy();
@@ -79,5 +79,27 @@ describe('createAuth — login flow', () => {
     const auth = createAuth(mkStore([]));
     expect(await auth.resolveToken('bidon')).toBeNull();
     expect(await auth.resolveToken('')).toBeNull();
+  });
+
+  it('configure le premier administrateur une seule fois', async () => {
+    const store = mkStore([]);
+    const auth = createAuth(store);
+    expect(await auth.isSetupRequired()).toBe(true);
+    const setup = await auth.setupFirstAdmin({
+      username: 'owner',
+      name: 'Compte Principal',
+      password: 'a-long-test-password'
+    });
+    expect(setup.user.role).toBe('Administrateur');
+    expect(setup.user.passwordHash).toBeUndefined();
+    expect(setup.token).toBeTruthy();
+    expect(await auth.isSetupRequired()).toBe(false);
+    expect((await auth.setupFirstAdmin({
+      username: 'second-owner',
+      name: 'Deuxième Compte',
+      password: 'another-test-password'
+    })).setupRequired).toBe(false);
+    expect(store.dump().users).toHaveLength(1);
+    expect(verifyPassword('a-long-test-password', store.dump().users[0].passwordHash)).toBe(true);
   });
 });

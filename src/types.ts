@@ -24,6 +24,7 @@ export type NavSection =
   | 'finance-tresorerie-caisses'
   | 'parametres-utilisateurs'
   | 'parametres-configuration'
+  | 'parametres-import'
   | 'parametres-export'
   | 'parametres-audit'
   | 'guide-utilisateur';
@@ -434,6 +435,7 @@ export interface PointDeVente {
   code: string; // Numero (PV0001)
   date: string; // Date
   operator: string; // Opérateur
+  occupiedBy?: string; // Identifiant du compte qui utilise actuellement la caisse
   openingAmount: number; // Montant d'ouverture (Solde Ouverture)
   closingAmount?: number; // Montant à la fermeture (Solde fermeture)
   openedAt: string; // Date et heure ouverture (Début)
@@ -561,7 +563,7 @@ export interface ApprovisionnementRecord {
   receptionId?: string; // ID technique de la réception
   supplierName?: string; // Fournisseur de la réception
   destinationType: 'Magasin' | 'Rayon' | 'Mixte'; // Type de destination
-  targetLocation: string; // Emplacement de stockage ou rayon (ex: "Magasin Central", "Rayon Épicerie", etc.)
+  targetLocation: string; // Emplacement de stockage ou rayon configuré par l'utilisateur
   items: ApprovisionnementItem[]; // Lignes d'approvisionnement (produits concernés)
   totalItemsCount: number;
   totalQuantity: number;
@@ -831,4 +833,3 @@ export interface SupplierReturn {
   cancelReason?: string;
   createdAt?: string;
 }
-
