@@ -68,6 +68,7 @@ import {
   persistRemoteDatabase,
   logoutRemote,
   fetchCurrentUser,
+  getFirstAdminSetupStatus,
   isRemoteDatabaseOnline,
   isRemoteApiConfigured,
   pushFullDatabase,
@@ -125,6 +126,7 @@ export default function App() {
 
   // User Authentication & Session state
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getStoredUser(initialUsers));
+  const [isAuthBootstrapComplete, setIsAuthBootstrapComplete] = useState(false);
 
   // Active view section state (initialized according to user role when authenticated)
   const [currentSection, setCurrentSection] = useState<NavSection>(() => {
@@ -449,20 +451,36 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // La base serveur est prioritaire sur le cache navigateur : sans compte,
+      // afficher la première configuration même si un ancien utilisateur est mémorisé localement.
+      const setupRequired = await getFirstAdminSetupStatus();
+      if (cancelled) return;
+      if (setupRequired === true) {
+        await logoutRemote();
+        if (cancelled) return;
+        saveStoredUser(null);
+        setCurrentUser(null);
+        setUsers([]);
+        seedCounters(initialDb);
+        setDbLoaded(true);
+        setIsAuthBootstrapComplete(true);
+        return;
+      }
+
       // Le token serveur valide la session stockée (sinon → retour login si serveur joignable)
       const remoteUser = await fetchCurrentUser();
       if (cancelled) return;
       if (remoteUser) {
         setCurrentUser(remoteUser);
         saveStoredUser(remoteUser);
-      } else if (currentUser && isRemoteDatabaseOnline()) {
+      } else if (setupRequired === false || (currentUser && isRemoteDatabaseOnline())) {
         // Serveur joignable mais session expirée/révoquée → déconnexion
         saveStoredUser(null);
         setCurrentUser(null);
       }
 
       // Chargement depuis le serveur local (SQLite) — seule source de vérité
-      if (remoteUser || currentUser) {
+      if (remoteUser || (setupRequired === null && currentUser)) {
         const remote = await loadRemoteDatabase();
         if (cancelled) return;
         if (remote) {
@@ -475,6 +493,7 @@ export default function App() {
         seedCounters(initialDb);
       }
       setDbLoaded(true);
+      setIsAuthBootstrapComplete(true);
     })();
     return () => {
       cancelled = true;
@@ -2649,6 +2668,14 @@ export default function App() {
   };
 
   // If not authenticated, render LoginView with role routing
+  if (!isAuthBootstrapComplete) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0A1628]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/25 border-t-white" />
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return (
       <LoginView
