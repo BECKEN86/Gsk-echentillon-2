@@ -377,9 +377,9 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
                 </button>
               </div>
 
-              {currentUser?.role === 'Caissier' && openCashRegisters.length > 0 && (
+              {currentUser?.role === 'Caissier' && !activePointDeVente && openCashRegisters.length > 0 && (
                 <select
-                  value={activePointDeVente?.id || ''}
+                  value=""
                   onChange={event => {
                     if (event.target.value) void onSelectCashRegister?.(event.target.value);
                   }}

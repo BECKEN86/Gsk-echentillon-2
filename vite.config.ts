@@ -26,7 +26,7 @@ export default defineConfig(() => {
           : {
               // Ne pas surveiller les artefacts (build, installateur, données
               // SQLite) — fichiers volumineux et parfois verrouillés (EBUSY).
-              ignored: ['**/release/**', '**/dist/**', '**/server/data/**', '**/server/server.bundle.mjs'],
+              ignored: ['**/release/**', '**/dist/**', '**/server/data/**', '**/server/server.bundle.mjs', '**/*.zip'],
             },
       // Le frontend dev est servi par Vite ; l'API SQLite reste sur :8787 si lancée
       proxy: {
