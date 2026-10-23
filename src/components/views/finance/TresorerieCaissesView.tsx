@@ -5,39 +5,33 @@ import {
   Smartphone,
   Store,
   ArrowRightLeft,
-  ArrowUpRight,
-  ArrowDownRight,
-  Plus,
   Search,
-  Filter,
-  Calendar,
   Clock,
   User,
   FileSpreadsheet,
   Printer,
   X,
-  CheckCircle2,
-  AlertCircle,
   Coins,
-  ShieldCheck,
-  RefreshCw
-} from 'lucide-react';
-import { TreasuryAccount, TreasuryMovement, UserAccount } from '../../../types';
+  ShieldCheck} from 'lucide-react';
+import { CompanyConfig, TreasuryAccount, TreasuryMovement, UserAccount } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
 import { formatAppDateTime } from '../../../utils/dateUtils';
+import { withProfessionalPrintBranding } from '../../../utils/professionalPrint';
 
 interface TresorerieCaissesViewProps {
   treasuryAccounts: TreasuryAccount[];
   treasuryMovements: TreasuryMovement[];
   onAddTreasuryMovement: (movement: Omit<TreasuryMovement, 'id' | 'code'>) => boolean;
   currentUser?: UserAccount | null;
+  companyConfig?: CompanyConfig | null;
 }
 
 export const TresorerieCaissesView: React.FC<TresorerieCaissesViewProps> = ({
   treasuryAccounts,
   treasuryMovements,
   onAddTreasuryMovement,
-  currentUser
+  currentUser,
+  companyConfig
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('Tous');
@@ -296,7 +290,7 @@ export const TresorerieCaissesView: React.FC<TresorerieCaissesViewProps> = ({
     const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
     if (frameDoc) {
       frameDoc.open();
-      frameDoc.write(htmlContent);
+      frameDoc.write(withProfessionalPrintBranding(htmlContent, companyConfig));
       frameDoc.close();
       setTimeout(() => {
         printFrame.contentWindow?.focus();

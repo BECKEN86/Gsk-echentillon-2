@@ -9,11 +9,9 @@ import {
   CreditCard, 
   Smartphone, 
   Banknote, 
-  Calendar,
-  Eye,
   Filter
 } from 'lucide-react';
-import { SaleOrder, PointDeVente, UserAccount } from '../../types';
+import { SaleOrder, PointDeVente } from '../../types';
 import { formatFCFA } from '../../data/initialData';
 
 interface PosOrdersModalProps {
@@ -21,10 +19,10 @@ interface PosOrdersModalProps {
   onClose: () => void;
   saleOrders: SaleOrder[];
   activePointDeVente?: PointDeVente;
+  cashierMode?: boolean;
   onOpenReceipt: (sale: SaleOrder) => void;
   /** Recharge une commande "En cours" dans le panier pour la terminer */
   onResumeOrder?: (order: SaleOrder) => void;
-  currentUser?: UserAccount | null;
 }
 
 export const PosOrdersModal: React.FC<PosOrdersModalProps> = ({
@@ -32,21 +30,28 @@ export const PosOrdersModal: React.FC<PosOrdersModalProps> = ({
   onClose,
   saleOrders = [],
   activePointDeVente,
+  cashierMode = false,
   onOpenReceipt,
-  onResumeOrder,
-  currentUser
+  onResumeOrder
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPaymentFilter, setSelectedPaymentFilter] = useState<string>('Tous');
   const [sessionFilter, setSessionFilter] = useState<'all' | 'current'>(
     activePointDeVente ? 'current' : 'all'
   );
-  const [selectedOrderForDetail, setSelectedOrderForDetail] = useState<SaleOrder | null>(null);
-
   if (!isOpen) return null;
 
   // Filter orders according to session, search term, and payment method
   const filteredOrders = saleOrders.filter(order => {
+    if (cashierMode) {
+      if (!activePointDeVente) return false;
+      const matchPvId = order.pointDeVenteId === activePointDeVente.id;
+      const matchPvCode = order.pointDeVenteCode === activePointDeVente.code;
+      const legacyOwnSession = !order.pointDeVenteId && !order.pointDeVenteCode &&
+        order.sellerName === activePointDeVente.operator;
+      if (!matchPvId && !matchPvCode && !legacyOwnSession) return false;
+    }
+
     // Session filter
     if (sessionFilter === 'current' && activePointDeVente) {
       const matchPvId = order.pointDeVenteId === activePointDeVente.id;
@@ -181,7 +186,7 @@ export const PosOrdersModal: React.FC<PosOrdersModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold text-[#001F3F]">Liste des Commandes & Ventes</h2>
-                {activePointDeVente && (
+                {activePointDeVente && !cashierMode && (
                   <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                     {activePointDeVente.code}
                   </span>

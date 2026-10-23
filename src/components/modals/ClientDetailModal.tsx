@@ -11,33 +11,28 @@ import {
   History,
   Plus,
   CheckCircle2,
-  AlertCircle,
-  Clock,
   UserCheck,
   RotateCcw,
   Receipt,
   Printer,
-  ArrowRight,
-  ShieldAlert,
-  Calendar,
-  Wallet
-} from 'lucide-react';
-import { Client, ClientCreditLine, ClientAvoirLine, CreditPayment, AvoirRefund } from '../../types';
+  } from 'lucide-react';
+import { CompanyConfig, Client, ClientCreditLine, ClientAvoirLine, CreditPayment, AvoirRefund } from '../../types';
 import { formatFCFA } from '../../data/initialData';
+import { withProfessionalPrintBranding } from '../../utils/professionalPrint';
 
 interface ClientDetailModalProps {
   client: Client | null;
+  companyConfig?: CompanyConfig | null;
   isOpen: boolean;
   onClose: () => void;
-  onEditClient: (client: Client) => void;
   onUpdateClient: (updatedClient: Client) => void;
 }
 
 export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   client,
+  companyConfig,
   isOpen,
   onClose,
-  onEditClient,
   onUpdateClient
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'credits' | 'avoirs'>('general');
@@ -50,14 +45,14 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   // Sub-modal for adding payment to credit line
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
-  const [paymentOperator, setPaymentOperator] = useState<string>('Awa Cissé');
+  const [paymentOperator, setPaymentOperator] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('Espèces');
   const [paymentRef, setPaymentRef] = useState<string>('');
 
   // Sub-modal for adding refund to avoir line
   const [isAddRefundOpen, setIsAddRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState<number>(0);
-  const [refundOperator, setRefundOperator] = useState<string>('Awa Cissé');
+  const [refundOperator, setRefundOperator] = useState<string>('');
   const [refundMethod, setRefundMethod] = useState<string>('Espèces');
   const [refundNote, setRefundNote] = useState<string>('');
 
@@ -352,7 +347,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       <div class="sign"><span>Signature client</span><span>Signature caissier</span></div>
       <div class="footer">Document généré le ${new Date().toLocaleString('fr-FR')} — GeStock</div>
       </body></html>`;
-    printWindow.document.write(html);
+    printWindow.document.write(withProfessionalPrintBranding(html, companyConfig, 'receipt'));
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
@@ -411,7 +406,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       </tbody></table>
       <div class="footer">Document généré le ${new Date().toLocaleString('fr-FR')} — GeStock</div>
       </body></html>`;
-    printWindow.document.write(html);
+    printWindow.document.write(withProfessionalPrintBranding(html, companyConfig));
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();

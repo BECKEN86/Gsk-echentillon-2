@@ -6,4 +6,3 @@
  */
 
 export { createApp } from './app.mjs';
-export { seedAdmin } from './seed.mjs';

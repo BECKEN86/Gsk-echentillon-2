@@ -6,7 +6,6 @@ import {
   ShoppingCart,
   Store,
   ArrowUpRight,
-  Plus,
   Clock,
   CheckCircle2,
   FileText,
@@ -14,7 +13,6 @@ import {
   ChevronRight,
   DollarSign,
   Scale,
-  Wallet,
   CalendarDays,
   PiggyBank
 } from 'lucide-react';

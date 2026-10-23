@@ -15,34 +15,35 @@ import {
   ChevronDown,
   Download,
   Upload,
-  Table as TableIcon,
-  PieChart as PieChartIcon,
   Image as ImageIcon,
-  QrCode,
-  Sparkles,
   ShoppingBag,
   Truck,
   CheckSquare,
   Square,
-  FileSpreadsheet,
   FileText,
   Boxes,
   LayoutGrid,
   List,
-  Eye
+  Eye,
+  Printer,
+  Camera
 } from 'lucide-react';
-import { Product, ProductCategory, StockMovement, OperationalUnit, OperationalUnitType, STORAGE_CONTAINER_UNITS, MEASUREMENT_UNITS, STORAGE_UNITS } from '../../../types';
+import { CompanyConfig, Product, ProductCategory, StockMovement, OperationalUnit, OperationalUnitType, STORAGE_CONTAINER_UNITS, MEASUREMENT_UNITS } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
+import { printList } from '../../../utils/printList';
 import { CategoryModal } from '../../modals/CategoryModal';
 import { UnitsManagerModal } from '../../modals/UnitsManagerModal';
 import { OperationalUnitsModal } from '../../modals/OperationalUnitsModal';
 import { ImportProductsModal } from '../../modals/ImportProductsModal';
 import { ProductDetailModal } from '../../modals/ProductDetailModal';
 import { ProductKanbanView } from './ProductKanbanView';
+import { QrScannerModal } from '../../modals/QrScannerModal';
+import { showToast } from '../../../utils/toast';
 
 interface ProduitsViewProps {
   products: Product[];
   categories: ProductCategory[];
+  companyConfig?: CompanyConfig | null;
   movements?: StockMovement[];
   onAddProduct: (product: Omit<Product, 'id'>) => void;
   onBatchAddProducts?: (products: Product[]) => void;
@@ -79,6 +80,7 @@ export function generateNextProductCode(productsList: Product[]): string {
 export const ProduitsView: React.FC<ProduitsViewProps> = ({
   products,
   categories,
+  companyConfig,
   movements = [],
   onAddProduct,
   onBatchAddProducts,
@@ -89,6 +91,7 @@ export const ProduitsView: React.FC<ProduitsViewProps> = ({
   onDeleteCategory
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('Tous');
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
@@ -235,8 +238,6 @@ export const ProduitsView: React.FC<ProduitsViewProps> = ({
   const [newUnitPrice, setNewUnitPrice] = useState<number>(0);
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
 
-  const categoryNames = ['Tous', ...categories.map(c => c.name)];
-
   const filteredProducts = products.filter(p => {
     const matchesSearch = 
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -246,6 +247,22 @@ export const ProduitsView: React.FC<ProduitsViewProps> = ({
     const matchesCategory = selectedCategory === 'Tous' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const handleQrScan = (value: string) => {
+    const scanned = value.trim();
+    setSearchTerm(scanned);
+    setSelectedCategory('Tous');
+    setIsQrScannerOpen(false);
+    const normalized = scanned.toLocaleLowerCase();
+    const found = products.some(product =>
+      [product.name, product.code, product.barcode || '', product.category]
+        .some(field => field.toLocaleLowerCase().includes(normalized))
+    );
+    showToast(
+      found ? 'QR code lu : recherche du produit lancée.' : 'Aucun produit correspondant à ce QR code.',
+      found ? 'success' : 'error'
+    );
+  };
 
   // Handle open Add Product Modal: Titre "Nouveau Produit" et TVA à 0
   const handleOpenAdd = () => {
@@ -559,6 +576,55 @@ export const ProduitsView: React.FC<ProduitsViewProps> = ({
     document.body.removeChild(link);
   };
 
+  const handlePrintProductList = () => {
+    setIsActionsMenuOpen(false);
+    const targetProducts = selectedProductIds.length > 0
+      ? products.filter(product => selectedProductIds.includes(product.id))
+      : filteredProducts;
+
+    if (targetProducts.length === 0) {
+      alert('Aucun produit à imprimer.');
+      return;
+    }
+
+    const columns = [
+      'Code produit',
+      'Code-barres',
+      'Désignation',
+      'Catégorie',
+      'Unité',
+      'Prix achat',
+      'Prix vente',
+      'Stock',
+      'Seuil',
+      'Statut'
+    ];
+    const rows = targetProducts.map(product => [
+      product.code,
+      product.barcode || '—',
+      product.name,
+      product.category,
+      product.storageUnit || product.unit || '—',
+      formatFCFA(product.buyPrice),
+      formatFCFA(product.sellPrice),
+      String(product.stock),
+      String(product.minStock),
+      product.stock <= product.minStock ? 'Stock faible' : 'Disponible'
+    ]);
+    const scope = selectedProductIds.length > 0
+      ? `${targetProducts.length} produit(s) sélectionné(s)`
+      : `${targetProducts.length} produit(s) — ${selectedCategory === 'Tous' ? 'toutes catégories' : selectedCategory}`;
+
+    printList({
+      title: 'Catalogue des produits',
+      subtitle: scope,
+      company: companyConfig,
+      professionalBranding: true,
+      columns,
+      rows
+    });
+  };
+
   const handleOpenImport = () => {
     setIsActionsMenuOpen(false);
     setIsImportModalOpen(true);
@@ -628,15 +694,24 @@ export const ProduitsView: React.FC<ProduitsViewProps> = ({
       {/* Filter and Search Bar: Catégorie (dropdown), Actions, Vue (Kanban ou Liste) */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         {/* Search input */}
-        <div className="relative flex-1 min-w-[240px]">
+        <div className="relative flex flex-1 min-w-[240px]">
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
             placeholder="Rechercher par nom, SKU, code-barres..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 text-slate-800 placeholder-slate-400 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
+            className="w-full pl-9 pr-12 py-2 bg-slate-50 text-slate-800 placeholder-slate-400 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
           />
+          <button
+            type="button"
+            onClick={() => setIsQrScannerOpen(true)}
+            className="absolute right-1 top-1 rounded-md p-1.5 text-[#001F3F] transition hover:bg-blue-100"
+            title="Scanner un QR code produit"
+            aria-label="Scanner un QR code produit"
+          >
+            <Camera className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Group: Catégorie (liste déroulante) + Boutons Actions & Vue */}
@@ -687,6 +762,21 @@ export const ProduitsView: React.FC<ProduitsViewProps> = ({
                       {selectedProductIds.length > 0
                         ? `Exporter ${selectedProductIds.length} produit(s) sélectionné(s)`
                         : 'Exporter tous les produits de stock (.csv)'}
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={handlePrintProductList}
+                  className="w-full px-4 py-2.5 text-left text-slate-700 hover:bg-blue-50 hover:text-blue-800 flex items-center gap-2.5 transition-colors border-t border-slate-100"
+                >
+                  <Printer className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div className="font-bold">Imprimer la liste des produits</div>
+                    <div className="text-[10px] text-slate-400">
+                      {selectedProductIds.length > 0
+                        ? `Imprimer ${selectedProductIds.length} produit(s) sélectionné(s)`
+                        : 'Imprimer les produits correspondant aux filtres'}
                     </div>
                   </div>
                 </button>
@@ -1094,7 +1184,7 @@ export const ProduitsView: React.FC<ProduitsViewProps> = ({
                       <input
                         type="text"
                         required
-                        placeholder="ex: Riz Parfumé 25kg (Marly)"
+                        placeholder="Nom du produit"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: capitalizeFirst(e.target.value) })}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none text-sm font-semibold"
@@ -1656,6 +1746,13 @@ export const ProduitsView: React.FC<ProduitsViewProps> = ({
           handleOpenEdit(prod);
         }}
       />
+
+      {isQrScannerOpen && (
+        <QrScannerModal
+          onClose={() => setIsQrScannerOpen(false)}
+          onScan={handleQrScan}
+        />
+      )}
 
       {/* MODAL: Création rapide d'une unité de stockage ou de mesure */}
       {newUnitModalType && (

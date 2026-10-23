@@ -4,13 +4,11 @@ import {
   Plus, 
   Search, 
   X, 
-  FileText,
   Calendar,
   Clock,
   User,
   Building2,
   DollarSign,
-  CheckCircle2,
   MoreVertical,
   Printer,
   Download,
@@ -19,16 +17,11 @@ import {
   Square,
   ArrowRight,
   Layers,
-  Barcode,
-  Package,
-  Edit,
-  Check,
   AlertCircle,
   ShieldCheck,
   ClipboardCheck,
   AlertTriangle,
   Hourglass,
-  ShieldAlert,
   Ban
 } from 'lucide-react';
 import { 
@@ -37,13 +30,14 @@ import {
   PurchaseOrder, 
   Supplier, 
   Product, 
-  OperationalUnit,
   ApprovisionnementRecord,
-  STORAGE_CONTAINER_UNITS 
+  CompanyConfig,
+  UserAccount
 } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
 import { purchaseUnitPrice } from '../../../utils/purchaseCalc';
 import { ReceptionDetailModal } from '../../modals/ReceptionDetailModal';
+import { withProfessionalPrintBranding } from '../../../utils/professionalPrint';
 
 export type ExpiryStatus = 'EXPIRED' | 'EXPIRING_SOON' | 'VALID' | 'NONE';
 
@@ -143,6 +137,8 @@ interface ReceptionViewProps {
   onCancelReception?: (receptionId: string) => void;
   initialPurchaseOrder?: PurchaseOrder | null;
   onClearInitialPurchaseOrder?: () => void;
+  currentUser?: UserAccount | null;
+  companyConfig?: CompanyConfig | null;
 }
 
 interface NewReceptionItemForm {
@@ -170,7 +166,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   approvisionnements = [],
   onCancelReception,
   initialPurchaseOrder,
-  onClearInitialPurchaseOrder
+  onClearInitialPurchaseOrder,
+  currentUser,
+  companyConfig
 }) => {
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -195,14 +193,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [actionWarning, setActionWarning] = useState<string | null>(null);
 
   // Form state for creating a new Reception
-  const [formReceiver, setFormReceiver] = useState('Kouassi Marc (Magasinier)');
+  const formReceiver = currentUser?.name || '';
   const [formMainSupplierId, setFormMainSupplierId] = useState('');
 
   // Une réception est annulable tant qu'elle n'a pas servi à un approvisionnement
   const isReceptionUsedInAppro = (rec: GoodsReception) =>
     approvisionnements.some(a => a.receptionId === rec.id || a.receptionNumber === rec.code);
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [formNotes, setFormNotes] = useState('Livraison conforme sans réserves');
+  const [formNotes, setFormNotes] = useState('');
   const [formVatRate, setFormVatRate] = useState<number>(18);
   const [formItems, setFormItems] = useState<NewReceptionItemForm[]>([]);
 
@@ -313,37 +311,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (!v || v === '') return 0;
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
-  };
-
-  // Helper: Obtenir la liste des UOA disponibles pour un produit
-  const getProductUoaList = (product: Product | undefined): OperationalUnit[] => {
-    if (!product) return [];
-    const list: OperationalUnit[] = [];
-    if (product.operationalUnits && product.operationalUnits.length > 0) {
-      product.operationalUnits
-        .filter(u => u.type === 'UOA')
-        .forEach(u => list.push(u));
-    }
-    if (product.uoa && !list.some(u => u.label === product.uoa?.label || u.label === product.uoa?.name)) {
-      list.push({
-        id: 'legacy_uoa',
-        label: product.uoa.label || product.uoa.name || 'Conditionnement Achat',
-        type: 'UOA',
-        quantity: product.uoa.quantity || 1,
-        price: product.uoa.price || product.buyPrice || 0
-      });
-    }
-    if (list.length === 0 && (product.storageUnit || product.unit)) {
-      const uName = product.storageUnit || product.unit || 'Unité';
-      list.push({
-        id: 'def_uoa',
-        label: uName,
-        type: 'UOA',
-        quantity: 1,
-        price: product.buyPrice || 0
-      });
-    }
-    return list;
   };
 
   // Selection handlers
@@ -457,27 +424,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (field === 'barcode' || field === 'productName') {
       setActivePopup({ rowIndex: index, field });
     }
-  };
-
-  // Select product from popup
-  const handleSelectProductFromPopup = (rowIndex: number, product: Product) => {
-    setFormItems(prev => {
-      const next = [...prev];
-      next[rowIndex] = {
-        ...next[rowIndex],
-        productId: product.id,
-        productName: product.name,
-        barcode: product.barcode || '',
-        orderedQty: 0,
-        receivedQty: 1,
-        acceptedQty: 1,
-        expirationDate: '',
-        unitPrice: product.buyPrice || 0,
-        supplierId: formMainSupplierId || next[rowIndex].supplierId || ''
-      };
-      return next;
-    });
-    setActivePopup(null);
   };
 
   // Form quantity totals
@@ -703,7 +649,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <td style="font-family: monospace; color: #64748b;">${r.purchaseOrderCode || 'Direct'}</td>
                   <td>${r.date}</td>
                   <td><strong>${r.supplierName}</strong></td>
-                  <td>${r.receiverName || 'Kouassi Marc'}</td>
+                  <td>${r.receiverName || '—'}</td>
                   <td class="text-right" style="font-weight: bold; color: #0f766e;">
                     ${(r.totalTTC || r.totalAmount || 0).toLocaleString('fr-FR')} FCFA
                   </td>
@@ -737,7 +683,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     const doc = iframe.contentWindow?.document || iframe.contentDocument;
     if (doc) {
       doc.open();
-      doc.write(htmlContent);
+      doc.write(withProfessionalPrintBranding(htmlContent, companyConfig));
       doc.close();
 
       setTimeout(() => {
@@ -1275,7 +1221,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         <div className="flex items-center gap-1.5">
                           <User className="w-3.5 h-3.5 text-slate-400" />
                           <span className="font-bold text-slate-800">
-                            {rec.receiverName || 'Kouassi Marc'}
+                            {rec.receiverName || '—'}
                           </span>
                         </div>
                       </td>
@@ -1776,6 +1722,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           reception={selectedRecDetail}
           supplier={suppliers.find(s => s.name === selectedRecDetail.supplierName || s.id === selectedRecDetail.supplierId)}
           purchaseOrder={purchaseOrders.find(p => p.id === selectedRecDetail.purchaseOrderId || p.code === selectedRecDetail.purchaseOrderCode)}
+          companyConfig={companyConfig}
           onClose={() => setSelectedRecDetail(null)}
           onValidateReception={(recId) => {
             onValidateReception(recId);

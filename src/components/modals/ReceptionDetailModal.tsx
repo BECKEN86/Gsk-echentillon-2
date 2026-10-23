@@ -7,15 +7,12 @@ import {
   Mail,
   MapPin,
   Calendar,
-  CheckCircle2,
   Clock,
   Ban,
   ShieldCheck,
-  Package,
   Layers,
   DollarSign,
   User,
-  Barcode,
   Percent,
   Printer,
   AlertTriangle,
@@ -23,11 +20,14 @@ import {
 } from 'lucide-react';
 import { GoodsReception, Supplier, PurchaseOrder } from '../../types';
 import { formatFCFA } from '../../data/initialData';
+import { CompanyConfig } from '../../types';
+import { withProfessionalPrintBranding } from '../../utils/professionalPrint';
 
 interface ReceptionDetailModalProps {
   reception: GoodsReception;
   supplier?: Supplier;
   purchaseOrder?: PurchaseOrder;
+  companyConfig?: CompanyConfig | null;
   onClose: () => void;
   onValidateReception?: (receptionId: string) => void;
   /** true si la réception n'est pas encore utilisée par un approvisionnement */
@@ -39,6 +39,7 @@ export const ReceptionDetailModal: React.FC<ReceptionDetailModalProps> = ({
   reception,
   supplier,
   purchaseOrder,
+  companyConfig,
   onClose,
   onValidateReception,
   canCancelReception = false,
@@ -248,7 +249,7 @@ export const ReceptionDetailModal: React.FC<ReceptionDetailModalProps> = ({
               </div>
               <div class="info-row">
                 <span class="info-label">Réceptionnaire / Magasinier :</span>
-                <span class="info-val">${reception.receiverName || 'Kouassi Marc'}</span>
+                <span class="info-val">${reception.receiverName || '—'}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Bon de commande lié :</span>
@@ -364,7 +365,7 @@ export const ReceptionDetailModal: React.FC<ReceptionDetailModalProps> = ({
     const doc = iframe.contentWindow?.document || iframe.contentDocument;
     if (doc) {
       doc.open();
-      doc.write(htmlContent);
+      doc.write(withProfessionalPrintBranding(htmlContent, companyConfig));
       doc.close();
 
       setTimeout(() => {
@@ -492,7 +493,7 @@ export const ReceptionDetailModal: React.FC<ReceptionDetailModalProps> = ({
                 <User className="w-3 h-3 text-slate-400" /> Réceptionnaire
               </span>
               <p className="text-xs font-bold text-slate-800 mt-1 truncate">
-                {reception.receiverName || 'Kouassi Marc'}
+                {reception.receiverName || '—'}
               </p>
             </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header, SyncStatus } from './components/Header';
 
@@ -43,9 +43,7 @@ import {
   buildCancelMovements,
   findSaleRevenueTransaction,
   revertClientMetrics,
-  canCancelSale,
-  canDeleteSale
-} from './utils/businessRules';
+  } from './utils/businessRules';
 import { buildWipedDatabase } from './utils/resetDatabase';
 import { buildAdjustmentMovements } from './utils/physicalInventory';
 import { buildAdjustmentDocMovements, buildCompensationMovements, summarizeAdjustment } from './utils/stockAdjustment';
@@ -70,13 +68,18 @@ import {
   persistRemoteDatabase,
   logoutRemote,
   fetchCurrentUser,
+  getFirstAdminSetupStatus,
   isRemoteDatabaseOnline,
   isRemoteApiConfigured,
   pushFullDatabase,
   getSessionToken,
-  startRemoteWatcher
+  startRemoteWatcher,
+  claimCashRegisterRemote,
+  releaseCashRegisterRemote
 } from './services/apiService';
-import { getStoredUser, saveStoredUser, isSectionAllowedForUser, canManageStockOperations, DEMO_USERS } from './services/authService';
+import { getStoredUser, saveStoredUser, isSectionAllowedForUser, canManageStockOperations } from './services/authService';
+import { showAuditSuccess, showToast } from './utils/toast';
+import { canOpenMultipleCashRegisters, canUseCashRegister, filterCashierOrders } from './utils/posAccess';
 
 import {
   NavSection,
@@ -111,23 +114,6 @@ import {
   SupplierReturn
 } from './types';
 
-import {
-  INITIAL_PRODUCTS,
-  INITIAL_CATEGORIES,
-  INITIAL_CLIENTS,
-  INITIAL_SUPPLIERS,
-  INITIAL_MOVEMENTS,
-  INITIAL_PRICE_INQUIRIES,
-  INITIAL_PURCHASE_ORDERS,
-  INITIAL_GOODS_RECEPTIONS,
-  INITIAL_APPROVISIONNEMENTS,
-  INITIAL_SALE_ORDERS,
-  INITIAL_POINTS_DE_VENTE,
-  INITIAL_TRANSACTIONS,
-  INITIAL_TREASURY_ACCOUNTS,
-  INITIAL_TREASURY_MOVEMENTS,
-  INITIAL_STORAGE_SITES
-} from './data/initialData';
 
 export default function App() {
   // Pré-amorçage : si une session serveur existe, la base SQLite (serveur
@@ -136,10 +122,11 @@ export default function App() {
   const [initialDb] = useState<AppDatabase>(() =>
     getSessionToken() ? getEmptyDatabase() : loadDatabase()
   );
-  const initialUsers = initialDb.users && initialDb.users.length > 0 ? initialDb.users : DEMO_USERS;
+  const initialUsers = initialDb.users || [];
 
   // User Authentication & Session state
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getStoredUser(initialUsers));
+  const [isAuthBootstrapComplete, setIsAuthBootstrapComplete] = useState(false);
 
   // Active view section state (initialized according to user role when authenticated)
   const [currentSection, setCurrentSection] = useState<NavSection>(() => {
@@ -153,6 +140,7 @@ export default function App() {
     }
     return 'accueil';
   });
+  const [selectedPointDeVenteId, setSelectedPointDeVenteId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
@@ -181,12 +169,42 @@ export default function App() {
     } else {
       setCurrentSection(user.defaultSection || 'accueil');
     }
+    showToast('Connexion réussie.');
   };
 
-  const handleLogout = () => {
-    void logoutRemote(); // révoque la session côté serveur
+  const handleLogout = async () => {
+    const occupiedSession = pointsDeVente.find(
+      session => session.occupiedBy === currentUser?.id
+    );
+    if (occupiedSession) {
+      await releaseCashRegisterRemote(occupiedSession.id);
+      setPointsDeVente(prev => prev.map(session => {
+        if (session.id !== occupiedSession.id) return session;
+        const { occupiedBy: _occupiedBy, ...released } = session;
+        return released;
+      }));
+    }
+    await logoutRemote(); // révoque la session côté serveur
     saveStoredUser(null);
     setCurrentUser(null);
+    showToast('Vous êtes déconnecté.');
+  };
+
+  const handleCreateFirstAdmin = async (user: UserAccount, remote: boolean) => {
+    if (remote) {
+      setDbLoaded(false);
+      const database = await loadRemoteDatabase();
+      if (!database) {
+        throw new Error('Le compte a été créé, mais le chargement de la base serveur a échoué. Rechargez la page pour vous connecter.');
+      }
+      clearLocalDatabaseCache();
+      handleDatabaseRestored(database);
+      setDbLoaded(true);
+      showToast('Le compte administrateur a été créé avec succès.');
+      return;
+    }
+    setUsers(prev => prev.length === 0 ? [user] : prev);
+    showToast('Le compte administrateur a été créé avec succès.');
   };
 
   // Route protection: Caissier is strictly locked to their point of sale ('vente-pos') and has no other menu
@@ -211,20 +229,20 @@ export default function App() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(initialDb.purchaseOrders);
   const [receptions, setReceptions] = useState<GoodsReception[]>(initialDb.receptions);
   const [approvisionnements, setApprovisionnements] = useState<ApprovisionnementRecord[]>(
-    () => initialDb.approvisionnements || INITIAL_APPROVISIONNEMENTS
+    () => initialDb.approvisionnements || []
   );
   const [approTargetReceptionId, setApproTargetReceptionId] = useState<string | null>(null);
   const [receptionSourcePO, setReceptionSourcePO] = useState<PurchaseOrder | null>(null);
   const [poToOpenDetail, setPoToOpenDetail] = useState<PurchaseOrder | null>(null);
   const [storageSites, setStorageSites] = useState<StorageSite[]>(
-    () => initialDb.storageSites && initialDb.storageSites.length > 0 ? initialDb.storageSites : INITIAL_STORAGE_SITES
+    () => initialDb.storageSites || []
   );
   const [saleOrders, setSaleOrders] = useState<SaleOrder[]>(initialDb.saleOrders);
   const [pointsDeVente, setPointsDeVente] = useState<PointDeVente[]>(initialDb.pointsDeVente);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>(initialDb.transactions);
   const [treasuryAccounts, setTreasuryAccounts] = useState<TreasuryAccount[]>(initialDb.treasuryAccounts);
   const [treasuryMovements, setTreasuryMovements] = useState<TreasuryMovement[]>(initialDb.treasuryMovements);
-  // Annuaire des comptes (les comptes de démo servent de seed si la base n'en contient pas)
+  // Annuaire des comptes configurés pour cette installation
   const [users, setUsers] = useState<UserAccount[]>(initialUsers);
   // Journal d'audit centralisé
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(initialDb.auditLogs || []);
@@ -381,6 +399,7 @@ export default function App() {
       details
     };
     setAuditLogs(prev => [entry, ...prev].slice(0, 2000));
+    showAuditSuccess(action, entity);
   };
 
   /**
@@ -406,14 +425,14 @@ export default function App() {
     setInquiries(newDb.inquiries);
     setPurchaseOrders(newDb.purchaseOrders);
     setReceptions(newDb.receptions);
-    setApprovisionnements(newDb.approvisionnements || INITIAL_APPROVISIONNEMENTS);
-    setStorageSites(newDb.storageSites && newDb.storageSites.length > 0 ? newDb.storageSites : INITIAL_STORAGE_SITES);
+    setApprovisionnements(newDb.approvisionnements || []);
+    setStorageSites(newDb.storageSites || []);
     setSaleOrders(newDb.saleOrders);
     setPointsDeVente(newDb.pointsDeVente.map(pv => ({ ...pv, sales: [] })));
     setTransactions(newDb.transactions);
     setTreasuryAccounts(newDb.treasuryAccounts);
     setTreasuryMovements(newDb.treasuryMovements);
-    setUsers(newDb.users && newDb.users.length > 0 ? newDb.users : DEMO_USERS);
+    setUsers(newDb.users || []);
     setValuations(newDb.valuations || []);
     setInventories(newDb.physicalInventories || []);
     setStockAdjustments(newDb.stockAdjustments || []);
@@ -432,20 +451,36 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // La base serveur est prioritaire sur le cache navigateur : sans compte,
+      // afficher la première configuration même si un ancien utilisateur est mémorisé localement.
+      const setupRequired = await getFirstAdminSetupStatus();
+      if (cancelled) return;
+      if (setupRequired === true) {
+        await logoutRemote();
+        if (cancelled) return;
+        saveStoredUser(null);
+        setCurrentUser(null);
+        setUsers([]);
+        seedCounters(initialDb);
+        setDbLoaded(true);
+        setIsAuthBootstrapComplete(true);
+        return;
+      }
+
       // Le token serveur valide la session stockée (sinon → retour login si serveur joignable)
       const remoteUser = await fetchCurrentUser();
       if (cancelled) return;
       if (remoteUser) {
         setCurrentUser(remoteUser);
         saveStoredUser(remoteUser);
-      } else if (currentUser && isRemoteDatabaseOnline()) {
+      } else if (setupRequired === false || (currentUser && isRemoteDatabaseOnline())) {
         // Serveur joignable mais session expirée/révoquée → déconnexion
         saveStoredUser(null);
         setCurrentUser(null);
       }
 
       // Chargement depuis le serveur local (SQLite) — seule source de vérité
-      if (remoteUser || currentUser) {
+      if (remoteUser || (setupRequired === null && currentUser)) {
         const remote = await loadRemoteDatabase();
         if (cancelled) return;
         if (remote) {
@@ -458,6 +493,7 @@ export default function App() {
         seedCounters(initialDb);
       }
       setDbLoaded(true);
+      setIsAuthBootstrapComplete(true);
     })();
     return () => {
       cancelled = true;
@@ -547,14 +583,50 @@ export default function App() {
   // Active Point de Vente: for cashier, priority to their own open session
   const activePointDeVente = useMemo(() => {
     if (isCashier) {
-      const mySession = pointsDeVenteWithSales.find(
-        p => p.status === 'En cours' && (p.operator === currentUser?.name || p.operator === currentUser?.username)
+      return pointsDeVenteWithSales.find(
+        p => p.status === 'En cours' && p.occupiedBy === currentUser?.id
       );
-      if (mySession) return mySession;
-      return pointsDeVenteWithSales.find(p => p.status === 'En cours');
     }
-    return pointsDeVenteWithSales.find(p => p.status === 'En cours');
-  }, [pointsDeVenteWithSales, currentUser, isCashier]);
+    const selectedSession = pointsDeVenteWithSales.find(
+      p => p.id === selectedPointDeVenteId && canUseCashRegister(p, currentUser)
+    );
+    if (selectedSession) return selectedSession;
+    return pointsDeVenteWithSales.find(p => canUseCashRegister(p, currentUser));
+  }, [pointsDeVenteWithSales, currentUser, isCashier, selectedPointDeVenteId]);
+
+  const handleSelectCashRegister = async (registerId: string): Promise<boolean> => {
+    if (currentUser?.role !== 'Caissier') return false;
+    const target = pointsDeVente.find(session => session.id === registerId);
+    if (!target || target.status !== 'En cours') return false;
+    if (target.occupiedBy && target.occupiedBy !== currentUser.id) {
+      showToast('Cette caisse est déjà utilisée par un autre caissier.', 'error');
+      return false;
+    }
+
+    const claimResult = await claimCashRegisterRemote(registerId);
+    if (claimResult.remote && !claimResult.ok) {
+      showToast(claimResult.error || 'Cette caisse ne peut pas être réservée.', 'error');
+      return false;
+    }
+
+    const previousSession = pointsDeVente.find(
+      session => session.occupiedBy === currentUser.id && session.id !== registerId
+    );
+    if (previousSession) {
+      void releaseCashRegisterRemote(previousSession.id);
+    }
+    setPointsDeVente(prev => prev.map(session => {
+      if (session.id === registerId) return { ...session, occupiedBy: currentUser.id };
+      if (session.id === previousSession?.id) {
+        const { occupiedBy: _occupiedBy, ...released } = session;
+        return released;
+      }
+      return session;
+    }));
+    setSelectedPointDeVenteId(registerId);
+    showToast(`La caisse ${target.code} vous est réservée.`);
+    return true;
+  };
 
   // Handlers for Categories
   const handleAddCategory = (catData: Omit<ProductCategory, 'id'>) => {
@@ -563,6 +635,7 @@ export default function App() {
       id: generateUniqueId('cat')
     };
     setCategories(prev => [...prev, newCat]);
+    showToast('La catégorie a été créée avec succès.');
   };
 
   const handleUpdateCategory = (updatedCat: ProductCategory) => {
@@ -576,6 +649,7 @@ export default function App() {
         return p;
       })
     );
+    showToast('La catégorie a été modifiée avec succès.');
   };
 
   const handleDeleteCategory = (id: string) => {
@@ -591,6 +665,7 @@ export default function App() {
         )
       );
     }
+    showToast('La catégorie a été supprimée avec succès.');
   };
 
   // Handlers for Products
@@ -619,14 +694,17 @@ export default function App() {
         ...prev
       ]);
     }
+    showToast('Le produit a été créé avec succès.');
   };
 
   const handleBatchAddProducts = (newProducts: Product[]) => {
     setProducts(prev => [...newProducts, ...prev]);
+    showToast(`${newProducts.length} produit(s) importé(s) avec succès.`);
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    showToast('Le produit a été modifié avec succès.');
   };
 
   const handleDeleteProduct = (id: string) => {
@@ -642,42 +720,7 @@ export default function App() {
       return;
     }
     setProducts(prev => prev.filter(p => p.id !== id));
-  };
-
-  // Handlers for Stock Movements
-  // Retourne false si l'opération rendrait le stock négatif (validation bloquante)
-  const handleAddStockMovement = (m: Omit<StockMovement, 'id'>, quantityChange: number): boolean => {
-    const product = products.find(p => p.id === m.productId);
-    if (!product) return false;
-    if (product.stock + quantityChange < 0) return false;
-
-    const newMovement: StockMovement = {
-      ...m,
-      id: generateUniqueId(`m_${m.productId}`)
-    };
-    setMovements(prev => [newMovement, ...prev]);
-
-    // Update product stock
-    setProducts(prev =>
-      prev.map(p => {
-        if (p.id === m.productId) {
-          const updatedStock = p.stock + quantityChange;
-          return {
-            ...p,
-            stock: updatedStock,
-            lastRestocked: quantityChange > 0 ? formatAppDate() : p.lastRestocked
-          };
-        }
-        return p;
-      })
-    );
-    logAudit(
-      'stock.movement',
-      'movements',
-      product.code || product.id,
-      `${m.type} ${quantityChange > 0 ? '+' : ''}${quantityChange} × ${product.name} — ${m.reason || ''}`
-    );
-    return true;
+    showToast('Le produit a été supprimé avec succès.');
   };
 
   // Handlers for Clients
@@ -688,11 +731,13 @@ export default function App() {
       totalPurchases: 0
     };
     setClients(prev => [newClient, ...prev]);
+    showToast('Le client a été créé avec succès.');
     return newClient;
   };
 
   const handleUpdateClient = (updatedClient: Client) => {
     setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+    showToast('Le client a été modifié avec succès.');
   };
 
   const handleDeleteClient = (id: string) => {
@@ -704,6 +749,7 @@ export default function App() {
       return;
     }
     setClients(prev => prev.filter(c => c.id !== id));
+    showToast('Le client a été supprimé avec succès.');
   };
 
   // Handlers for Suppliers
@@ -714,10 +760,12 @@ export default function App() {
       balance: 0
     };
     setSuppliers(prev => [newSupplier, ...prev]);
+    showToast('Le fournisseur a été créé avec succès.');
   };
 
   const handleUpdateSupplier = (updatedSupplier: Supplier) => {
     setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
+    showToast('Le fournisseur a été modifié avec succès.');
   };
 
   const handleDeleteSupplier = (id: string) => {
@@ -731,6 +779,7 @@ export default function App() {
       return;
     }
     setSuppliers(prev => prev.filter(s => s.id !== id));
+    showToast('Le fournisseur a été supprimé avec succès.');
   };
 
   // Handlers for Demandes de prix
@@ -741,6 +790,7 @@ export default function App() {
       code: nextCode('DEV')
     };
     setInquiries(prev => [newInquiry, ...prev]);
+    showToast('La demande de prix a été créée avec succès.');
   };
 
   const handleConvertToPurchaseOrder = (inquiry: PriceInquiry) => {
@@ -798,6 +848,7 @@ export default function App() {
     setCurrentSection('achat-bon-commande');
     // Enchaînement : la fiche du bon créé s'ouvre pour validation (étape suivante)
     setPoToOpenDetail(newPO);
+    showToast('Le bon de commande a été créé à partir de la demande de prix.');
   };
 
   const handleDeleteInquiry = (id: string) => {
@@ -805,15 +856,14 @@ export default function App() {
     const target = inquiries.find(i => i.id === id);
     if (target?.status === 'Validé') return;
     setInquiries(prev => prev.filter(i => i.id !== id));
+    if (target) showToast('La demande de prix a été supprimée avec succès.');
   };
 
   const handleDeleteMultipleInquiries = (ids: string[]) => {
     // Ne pas supprimer les demandes de prix validées
+    const deletableCount = inquiries.filter(i => ids.includes(i.id) && i.status !== 'Validé').length;
     setInquiries(prev => prev.filter(i => !ids.includes(i.id) || i.status === 'Validé'));
-  };
-
-  const handleUpdateInquiryStatus = (id: string, status: PriceInquiry['status']) => {
-    setInquiries(prev => prev.map(i => i.id === id ? { ...i, status } : i));
+    if (deletableCount > 0) showToast(`${deletableCount} demande(s) de prix supprimée(s) avec succès.`);
   };
 
   const handleUpdateInquiry = (updatedInquiry: PriceInquiry) => {
@@ -824,6 +874,9 @@ export default function App() {
       }
       return i;
     }));
+    if (inquiries.some(i => i.id === updatedInquiry.id && i.status === 'En cours')) {
+      showToast('La demande de prix a été modifiée avec succès.');
+    }
   };
 
   const handleDuplicateInquiry = (inquiryToDuplicate: PriceInquiry) => {
@@ -838,6 +891,7 @@ export default function App() {
     };
 
     setInquiries(prev => [duplicated, ...prev]);
+    showToast('La demande de prix a été dupliquée avec succès.');
   };
 
   // Handlers for Purchase Orders
@@ -848,6 +902,7 @@ export default function App() {
       code: nextCode('BC')
     };
     setPurchaseOrders(prev => [newPO, ...prev]);
+    showToast('Le bon de commande a été créé avec succès.');
 
     // Validation automatique de la demande de prix source
     const targetInqId = sourceInquiryId || poData.inquiryId;
@@ -872,6 +927,9 @@ export default function App() {
         setCurrentSection('achat-reception');
       }
     }
+    showToast(status === 'Validé'
+      ? 'Le bon de commande a été validé avec succès.'
+      : 'Le bon de commande a été remis en cours.');
   };
 
   const handleValidatePurchaseOrderWithSettlements = (
@@ -1029,6 +1087,9 @@ export default function App() {
       }
       return p;
     }));
+    if (purchaseOrders.some(p => p.id === updatedPO.id && p.status === 'En cours')) {
+      showToast('Le bon de commande a été modifié avec succès.');
+    }
   };
 
   const handleDuplicatePurchaseOrder = (poToDuplicate: PurchaseOrder) => {
@@ -1044,6 +1105,7 @@ export default function App() {
     };
 
     setPurchaseOrders(prev => [duplicated, ...prev]);
+    showToast('Le bon de commande a été dupliqué avec succès.');
   };
 
   const handleDeletePurchaseOrder = (id: string) => {
@@ -1108,6 +1170,7 @@ export default function App() {
       code: nextCode('REC')
     };
     setReceptions(prev => [newRec, ...prev]);
+    showToast('La réception a été créée avec succès.');
 
     // If linked to a PO, mark that PO as received
     if (newRec.purchaseOrderId) {
@@ -1167,6 +1230,7 @@ export default function App() {
       return;
     }
     setReceptions(prev => prev.filter(r => r.id !== id));
+    if (rec) showToast('La réception a été supprimée avec succès.');
   };
 
   const handleDeleteMultipleReceptions = (ids: string[]) => {
@@ -1176,6 +1240,8 @@ export default function App() {
       return;
     }
     setReceptions(prev => prev.filter(r => !ids.includes(r.id)));
+    const deletedCount = receptions.filter(r => ids.includes(r.id)).length;
+    if (deletedCount > 0) showToast(`${deletedCount} réception(s) supprimée(s) avec succès.`);
   };
 
   // Handlers for Approvisionnements (Mise en stock des marchandises après réception)
@@ -1338,6 +1404,7 @@ export default function App() {
   // Handlers for Physical Inventory
   // Crée (id/code générés) ou met à jour un inventaire ; retourne la fiche enregistrée
   const handleSaveInventory = (inv: PhysicalInventory): PhysicalInventory => {
+    const isNew = !inv.id;
     const saved: PhysicalInventory = inv.id
       ? inv
       : { ...inv, id: generateUniqueId('inv'), code: nextCode('INV') };
@@ -1345,6 +1412,9 @@ export default function App() {
       const exists = prev.some(i => i.id === saved.id);
       return exists ? prev.map(i => (i.id === saved.id ? saved : i)) : [saved, ...prev];
     });
+    showToast(isNew
+      ? 'L’inventaire physique a été créé avec succès.'
+      : 'L’inventaire physique a été enregistré avec succès.');
     return saved;
   };
 
@@ -1416,6 +1486,7 @@ export default function App() {
   // Handlers for Stock Adjustments (Ajustement de produits)
   // Crée (id/code générés) ou met à jour un ajustement ; retourne le document enregistré
   const handleSaveAdjustment = (adj: StockAdjustment): StockAdjustment => {
+    const isNew = !adj.id;
     const saved: StockAdjustment = adj.id
       ? adj
       : { ...adj, id: generateUniqueId('adj'), code: nextCode('ADJ') };
@@ -1423,6 +1494,9 @@ export default function App() {
       const exists = prev.some(a => a.id === saved.id);
       return exists ? prev.map(a => (a.id === saved.id ? saved : a)) : [saved, ...prev];
     });
+    showToast(isNew
+      ? 'L’ajustement de stock a été créé avec succès.'
+      : 'L’ajustement de stock a été enregistré avec succès.');
     return saved;
   };
 
@@ -1673,6 +1747,7 @@ export default function App() {
   // ---- Handlers for Customer Returns (Retours clients) ----
 
   const handleSaveCustomerReturn = (r: CustomerReturn): CustomerReturn => {
+    const isNew = !r.id;
     const saved: CustomerReturn = r.id
       ? r
       : { ...r, id: generateUniqueId('rc'), code: nextCode('RC') };
@@ -1680,6 +1755,7 @@ export default function App() {
       const exists = prev.some(x => x.id === saved.id);
       return exists ? prev.map(x => (x.id === saved.id ? saved : x)) : [saved, ...prev];
     });
+    showToast(isNew ? 'Le retour client a été créé avec succès.' : 'Le retour client a été enregistré avec succès.');
     return saved;
   };
 
@@ -1818,6 +1894,7 @@ export default function App() {
   // ---- Handlers for Supplier Returns (Retours fournisseurs) ----
 
   const handleSaveSupplierReturn = (r: SupplierReturn): SupplierReturn => {
+    const isNew = !r.id;
     const saved: SupplierReturn = r.id
       ? r
       : { ...r, id: generateUniqueId('rf'), code: nextCode('RF') };
@@ -1825,6 +1902,7 @@ export default function App() {
       const exists = prev.some(x => x.id === saved.id);
       return exists ? prev.map(x => (x.id === saved.id ? saved : x)) : [saved, ...prev];
     });
+    showToast(isNew ? 'Le retour fournisseur a été créé avec succès.' : 'Le retour fournisseur a été enregistré avec succès.');
     return saved;
   };
 
@@ -1958,12 +2036,16 @@ export default function App() {
     openedAt: string;
     notes?: string;
   }): boolean => {
-    // Une seule session de caisse "En cours" à la fois : les ventes seraient
-    // sinon rattachées à une caisse ambiguë
-    const alreadyOpen = pointsDeVente.find(p => p.status === 'En cours');
-    if (alreadyOpen) {
+    const canOpenMultiple = canOpenMultipleCashRegisters(currentUser?.role);
+    const operator = currentUser?.role === 'Caissier'
+      ? currentUser.name || currentUser.username
+      : data.operator;
+    const alreadyOpen = canOpenMultiple
+      ? undefined
+      : pointsDeVente.find(p => p.status === 'En cours');
+    if (!canOpenMultiple && alreadyOpen) {
       alert(
-        `La session ${alreadyOpen.code} (${alreadyOpen.operator}) est déjà ouverte. Fermez-la avant d'en ouvrir une nouvelle.`
+          `La caisse ${alreadyOpen.code} (${alreadyOpen.operator}) est déjà ouverte. Seuls un Responsable Agence ou un Administrateur peuvent ouvrir plusieurs caisses simultanément.`
       );
       return false;
     }
@@ -1971,7 +2053,8 @@ export default function App() {
       id: generateUniqueId('pv'),
       code: data.code,
       date: data.date,
-      operator: data.operator,
+      operator,
+      ...(currentUser?.role === 'Caissier' ? { occupiedBy: currentUser.id } : {}),
       openingAmount: data.openingAmount,
       openedAt: data.openedAt,
       status: 'En cours',
@@ -1985,6 +2068,8 @@ export default function App() {
       notes: data.notes
     };
     setPointsDeVente(prev => [newPV, ...prev]);
+    setSelectedPointDeVenteId(newPV.id);
+    showToast('La session de caisse a été ouverte avec succès.');
     return true;
   };
 
@@ -2013,8 +2098,9 @@ export default function App() {
     setPointsDeVente(prev =>
       prev.map(p => {
         if (p.id === pvId) {
+          const { occupiedBy: _occupiedBy, ...session } = p;
           return {
-            ...p,
+            ...session,
             closingAmount,
             closedAt,
             status: 'Fermé' as const,
@@ -2026,11 +2112,18 @@ export default function App() {
         return p;
       })
     );
+    if (selectedPointDeVenteId === pvId) setSelectedPointDeVenteId(null);
+    showToast('La session de caisse a été clôturée avec succès.');
   };
 
   // Handlers for POS Sales
   // Retourne la vente créée, ou false si l'encaissement est refusé (stock insuffisant)
   const handleCompleteSale = (saleData: Omit<SaleOrder, 'id' | 'code'>, cartItems: CartItem[]): SaleOrder | false => {
+    if (!canUseCashRegister(activePointDeVente, currentUser)) {
+      showToast('Sélectionnez une caisse ouverte et disponible avant de procéder à un encaissement.', 'error');
+      return false;
+    }
+
     // Contrôle bloquant : la demande est agrégée par produit (un même produit
     // peut figurer sur plusieurs lignes du panier, ex: UOV différentes)
     const demandedByProduct = new Map<string, number>();
@@ -2051,7 +2144,7 @@ export default function App() {
     }
 
     // Find active Point de Vente ('En cours') for current cashier or overall
-    const activePV = activePointDeVente || pointsDeVente.find(p => p.status === 'En cours');
+    const activePV = activePointDeVente;
 
     const newSale: SaleOrder = {
       ...saleData,
@@ -2182,11 +2275,14 @@ export default function App() {
       status: 'En cours'
     };
     setSaleOrders(prev => [draft, ...prev]);
+    showToast('La commande a été mise en attente avec succès.');
   };
 
   // Reprise d'un brouillon : on le retire de la liste (la vente finale est recréée à l'encaissement)
   const handleRemovePendingOrder = (orderId: string) => {
+    const wasPending = saleOrders.some(o => o.id === orderId && o.status === 'En cours');
     setSaleOrders(prev => prev.filter(o => o.id !== orderId || o.status !== 'En cours'));
+    if (wasPending) showToast('La commande en attente a été supprimée.');
   };
 
   // Annulation d'une vente : contre-passation complète (statut, stock,
@@ -2521,6 +2617,7 @@ export default function App() {
         return acc;
       })
     );
+    showToast('La transaction a été supprimée avec succès.');
   };
 
   // Handlers for Treasury Movements
@@ -2571,8 +2668,22 @@ export default function App() {
   };
 
   // If not authenticated, render LoginView with role routing
+  if (!isAuthBootstrapComplete) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0A1628]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/25 border-t-white" />
+      </div>
+    );
+  }
+
   if (!currentUser) {
-    return <LoginView onLoginSuccess={handleLoginSuccess} users={users} />;
+    return (
+      <LoginView
+        onLoginSuccess={handleLoginSuccess}
+        users={users}
+        onCreateFirstAdmin={handleCreateFirstAdmin}
+      />
+    );
   }
 
   return (
@@ -2776,6 +2887,7 @@ export default function App() {
             <ProduitsView
               products={products}
               categories={categories}
+              companyConfig={companyConfig}
               movements={movements}
               onAddProduct={handleAddProduct}
               onBatchAddProducts={handleBatchAddProducts}
@@ -2790,6 +2902,7 @@ export default function App() {
           {currentSection === 'acteurs-clients' && (
             <ClientsView
               clients={clients}
+              companyConfig={companyConfig}
               onAddClient={handleAddClient}
               onUpdateClient={handleUpdateClient}
               onDeleteClient={handleDeleteClient}
@@ -2799,6 +2912,7 @@ export default function App() {
           {currentSection === 'acteurs-fournisseurs' && (
             <FournisseursView
               suppliers={suppliers}
+              companyConfig={companyConfig}
               onAddSupplier={handleAddSupplier}
               onUpdateSupplier={handleUpdateSupplier}
               onDeleteSupplier={handleDeleteSupplier}
@@ -2816,10 +2930,10 @@ export default function App() {
               onConvertToPurchaseOrder={handleConvertToPurchaseOrder}
               onDeleteInquiry={handleDeleteInquiry}
               onDeleteMultipleInquiries={handleDeleteMultipleInquiries}
-              onUpdateInquiryStatus={handleUpdateInquiryStatus}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               currentUser={currentUser}
+              companyConfig={companyConfig}
             />
           )}
 
@@ -2853,6 +2967,7 @@ export default function App() {
               purchaseOrders={purchaseOrders}
               products={products}
               suppliers={suppliers}
+              currentUser={currentUser}
               onValidateReception={handleValidateReception}
               onAddDirectReception={handleAddDirectReception}
               onDeleteReception={handleDeleteReception}
@@ -2861,6 +2976,7 @@ export default function App() {
               onCancelReception={handleCancelReception}
               initialPurchaseOrder={receptionSourcePO}
               onClearInitialPurchaseOrder={() => setReceptionSourcePO(null)}
+              companyConfig={companyConfig}
               onNavigateToBonCommande={() => setCurrentSection('achat-bon-commande')}
             />
           )}
@@ -2885,7 +3001,10 @@ export default function App() {
               pointsDeVente={pointsDeVenteWithSales}
               onOpenPointDeVente={handleOpenPointDeVente}
               onClosePointDeVente={handleClosePointDeVente}
-              onNavigateToPOS={() => setCurrentSection('vente-pos')}
+              onNavigateToPOS={(pv) => {
+                setSelectedPointDeVenteId(pv?.id || null);
+                setCurrentSection('vente-pos');
+              }}
               onOpenReceipt={setActiveReceiptSale}
               companyConfig={companyConfig}
             />
@@ -2897,7 +3016,9 @@ export default function App() {
               clients={clients}
               onAddClient={handleAddClient}
               activePointDeVente={activePointDeVente}
-              saleOrders={saleOrders}
+              saleOrders={filterCashierOrders(saleOrders, currentUser, pointsDeVente)}
+              openCashRegisters={pointsDeVente.filter(session => session.status === 'En cours')}
+              onSelectCashRegister={handleSelectCashRegister}
               onNavigateToSessions={isCashier ? undefined : () => setCurrentSection('vente-sessions')}
               onCompleteSale={handleCompleteSale}
               onOpenReceipt={setActiveReceiptSale}
@@ -2943,6 +3064,7 @@ export default function App() {
               onAddTransaction={handleAddFinancialTransaction}
               onDeleteTransaction={handleDeleteFinancialTransaction}
               currentUser={currentUser}
+              companyConfig={companyConfig}
             />
           )}
 
@@ -2951,6 +3073,7 @@ export default function App() {
               products={products}
               saleOrders={saleOrders}
               transactions={transactions}
+              companyConfig={companyConfig}
             />
           )}
 
@@ -2960,6 +3083,7 @@ export default function App() {
               treasuryMovements={treasuryMovements}
               onAddTreasuryMovement={handleAddTreasuryMovement}
               currentUser={currentUser}
+              companyConfig={companyConfig}
             />
           )}
 

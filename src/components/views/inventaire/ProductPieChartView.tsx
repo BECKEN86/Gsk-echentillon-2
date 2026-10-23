@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
 import { 
   PieChart as PieChartIcon, 
-  Layers, 
   DollarSign, 
   Store, 
   Archive, 
-  TrendingUp,
   Package,
-  CheckCircle,
-  AlertTriangle,
-  XCircle
-} from 'lucide-react';
+  } from 'lucide-react';
 import { Product, ProductCategory } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
 

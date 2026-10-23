@@ -29,6 +29,7 @@ import {
 import { formatFCFA } from '../../../data/initialData';
 import { formatAppDate, formatAppDateTime } from '../../../utils/dateUtils';
 import { computeStockValuation } from '../../../utils/stockValuation';
+import { withProfessionalPrintBranding } from '../../../utils/professionalPrint';
 import { LOSS_TYPES, summarizeLosses } from '../../../utils/stockLoss';
 
 const STATUS_STYLES: Record<StockAvarieLoss['status'], string> = {
@@ -249,7 +250,7 @@ export const PertesAvariesView: React.FC<PertesAvariesViewProps> = ({
       <script>window.onload = () => { window.print(); }<\/script></body></html>`;
     const w = window.open('', '_blank', 'width=1100,height=800');
     if (!w) return;
-    w.document.write(html);
+    w.document.write(withProfessionalPrintBranding(html, companyConfig));
     w.document.close();
   };
 

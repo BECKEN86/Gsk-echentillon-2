@@ -12,19 +12,25 @@ import {
   UserCheck, 
   Receipt, 
   X,
-  Lock
+  Lock,
+  Camera
 } from 'lucide-react';
 import { Product, Client, CartItem, SaleOrder, PointDeVente, UserAccount } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
 import { formatAppDateTime } from '../../../utils/dateUtils';
 import { PointDeVenteOpenModal, PointDeVenteCloseModal } from '../../modals/PointDeVenteModal';
 import { PosOrdersModal } from '../../modals/PosOrdersModal';
+import { QrScannerModal } from '../../modals/QrScannerModal';
+import { showToast } from '../../../utils/toast';
+import { canUseCashRegister, hasOpenCashRegister } from '../../../utils/posAccess';
 
 interface PointDeVenteViewProps {
   products: Product[];
   clients: Client[];
   onAddClient?: (clientData: Omit<Client, 'id' | 'totalPurchases'>) => Client | void;
   activePointDeVente?: PointDeVente;
+  openCashRegisters?: PointDeVente[];
+  onSelectCashRegister?: (registerId: string) => Promise<boolean>;
   saleOrders?: SaleOrder[];
   onNavigateToSessions?: () => void;
   onCompleteSale: (sale: Omit<SaleOrder, 'id' | 'code'>, cartItems: CartItem[]) => SaleOrder | false;
@@ -51,6 +57,8 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
   clients,
   onAddClient,
   activePointDeVente,
+  openCashRegisters = [],
+  onSelectCashRegister,
   saleOrders = [],
   onCompleteSale,
   onOpenReceipt,
@@ -62,6 +70,7 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
   onClosePointDeVente
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('Tous');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
@@ -140,6 +149,22 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
     const matchesCat = selectedCategory === 'Tous' || p.category === selectedCategory;
     return matchesSearch && matchesCat;
   });
+
+  const handleQrScan = (value: string) => {
+    const scanned = value.trim();
+    setSearchTerm(scanned);
+    setSelectedCategory('Tous');
+    setIsQrScannerOpen(false);
+    const normalized = scanned.toLocaleLowerCase();
+    const found = posProducts.some(product =>
+      [product.name, product.code, product.barcode || '']
+        .some(field => field.toLocaleLowerCase().includes(normalized))
+    );
+    showToast(
+      found ? 'QR code lu : recherche du produit lancée.' : 'Aucun produit correspondant à ce QR code.',
+      found ? 'success' : 'error'
+    );
+  };
 
   // UOV disponibles pour un produit (liste + rétro-compatibilité champ uov)
   const getUovUnits = (p: Product) => {
@@ -223,6 +248,10 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
+    if (!canUseCashRegister(activePointDeVente, currentUser || null)) {
+      showToast('Sélectionnez une caisse ouverte et disponible avant de procéder à un encaissement.', 'error');
+      return;
+    }
     const client = clients.find(c => c.id === selectedClientId);
 
     if (paymentMethod === 'Crédit' && !client) {
@@ -335,9 +364,43 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
                   placeholder="Scanner ou rechercher un produit par nom..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 text-slate-800 placeholder-slate-400 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full pl-9 pr-12 py-2 bg-slate-50 text-slate-800 placeholder-slate-400 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500"
                 />
+                <button
+                  type="button"
+                  onClick={() => setIsQrScannerOpen(true)}
+                  className="absolute right-1 top-1 rounded-md p-1.5 text-[#001F3F] transition hover:bg-blue-100"
+                  title="Scanner un QR code produit"
+                  aria-label="Scanner un QR code produit"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
               </div>
+
+              {currentUser?.role === 'Caissier' && !activePointDeVente && openCashRegisters.length > 0 && (
+                <select
+                  value=""
+                  onChange={event => {
+                    if (event.target.value) void onSelectCashRegister?.(event.target.value);
+                  }}
+                  className="max-w-48 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none"
+                  aria-label="Sélectionner une caisse disponible"
+                >
+                  <option value="">Choisir une caisse…</option>
+                  {openCashRegisters.map(register => {
+                    const occupiedByOther = !!register.occupiedBy && register.occupiedBy !== currentUser.id;
+                    return (
+                      <option
+                        key={register.id}
+                        value={register.id}
+                        disabled={occupiedByOther}
+                      >
+                        {register.code} — {occupiedByOther ? 'Occupée' : register.operator}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
 
               <button
                 type="button"
@@ -354,7 +417,8 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
                 )}
               </button>
 
-              {!activePointDeVente && onOpenPointDeVente && (
+              {!activePointDeVente && onOpenPointDeVente &&
+                (currentUser?.role !== 'Caissier' || openCashRegisters.length === 0) && (
                 <button
                   type="button"
                   onClick={() => setIsOpenModalOpen(true)}
@@ -608,9 +672,16 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
 
             <div className="flex items-stretch gap-2">
               <button
-                disabled={cart.length === 0}
-                onClick={() => setShowCheckoutModal(true)}
+                disabled={cart.length === 0 || !canUseCashRegister(activePointDeVente, currentUser || null)}
+                onClick={() => {
+                  if (!canUseCashRegister(activePointDeVente, currentUser || null)) {
+                    showToast('Sélectionnez une caisse ouverte et disponible avant de procéder à un encaissement.', 'error');
+                    return;
+                  }
+                  setShowCheckoutModal(true);
+                }}
                 className="flex-1 py-3 rounded-lg bg-[#001F3F] hover:bg-blue-900 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-sm shadow-xs transition-colors flex items-center justify-center gap-2"
+                title={!canUseCashRegister(activePointDeVente, currentUser || null) ? 'Sélectionnez une caisse ouverte et disponible avant d’encaisser' : undefined}
               >
                 <span>Encaisser</span>
               </button>
@@ -625,6 +696,18 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
                 <span>Annuler</span>
               </button>
             </div>
+            {!hasOpenCashRegister(activePointDeVente) && openCashRegisters.length === 0 && (
+              <p className="text-center text-xs font-semibold text-amber-700">
+                Ouvrez une caisse pour pouvoir encaisser cette commande.
+              </p>
+            )}
+            {!hasOpenCashRegister(activePointDeVente) && openCashRegisters.length > 0 && (
+              <p className="text-center text-xs font-semibold text-amber-700">
+                {openCashRegisters.some(register => !register.occupiedBy || register.occupiedBy === currentUser?.id)
+                  ? 'Sélectionnez une caisse disponible pour pouvoir encaisser.'
+                  : 'Toutes les caisses ouvertes sont occupées. Contactez un responsable.'}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -721,6 +804,7 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
           onClose={() => setIsOpenModalOpen(false)}
           nextCode={nextSessionCode}
           defaultOperator={currentUser?.name || 'Opérateur'}
+          lockOperator={currentUser?.role === 'Caissier'}
           onConfirmOpen={(data) => {
             const opened = onOpenPointDeVente(data);
             if (opened !== false) {
@@ -750,9 +834,16 @@ export const PointDeVenteView: React.FC<PointDeVenteViewProps> = ({
           onClose={() => setIsOrdersModalOpen(false)}
           saleOrders={saleOrders}
           activePointDeVente={activePointDeVente}
+          cashierMode={currentUser?.role === 'Caissier'}
           onOpenReceipt={onOpenReceipt}
           onResumeOrder={handleResumeOrder}
-          currentUser={currentUser}
+        />
+      )}
+
+      {isQrScannerOpen && (
+        <QrScannerModal
+          onClose={() => setIsQrScannerOpen(false)}
+          onScan={handleQrScan}
         />
       )}
 

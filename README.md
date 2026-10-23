@@ -33,6 +33,9 @@ Ouvrir http://localhost:3000
 
 ## Authentification
 
+- À la première ouverture, créez le compte Administrateur dans l’écran de
+  configuration initiale. Aucun utilisateur ou mot de passe par défaut n’est
+  fourni.
 - **Serveur** : `POST /api/auth/login` vérifie le hash **scrypt** côté serveur
   et émet un token de session (12 h) stocké en base (`sessions`).
 - Toutes les routes `/api/db*` exigent un en-tête `Authorization: Bearer <token>` ;
@@ -63,6 +66,8 @@ retirés) : toutes les données restent sur le poste.
 
 | Méthode | Route                        | Accès     |
 |---------|------------------------------|-----------|
+| GET     | `/api/auth/setup-status`     | public    |
+| POST    | `/api/auth/setup`            | public, une seule fois |
 | POST    | `/api/auth/login`            | public    |
 | POST    | `/api/auth/logout`           | Bearer    |
 | GET     | `/api/auth/me`               | Bearer    |
@@ -91,16 +96,3 @@ chaque push/PR sur `main`.
 génère `release/GeStock-Setup-1.0.0.exe` — serveur et base SQLite embarqués,
 données dans `%APPDATA%\GeStock\data`. Aucun déploiement cloud n'est prévu :
 le serveur est toujours local (`localhost`).
-
-## Comptes de démonstration
-
-| Utilisateur | Mot de passe | Rôle               |
-|-------------|--------------|--------------------|
-| `admin`     | `admin123`   | Administrateur     |
-| `gerant`    | `gerant123`  | Gérant             |
-| `caissier`  | `caisse123`  | Caissier           |
-| `agence`    | `agence123`  | Responsable Agence |
-
-> Changez ces mots de passe avant toute mise en production (Paramètres →
-> Utilisateurs → réinitialisation). Ils sont hachés automatiquement au premier
-> login serveur.

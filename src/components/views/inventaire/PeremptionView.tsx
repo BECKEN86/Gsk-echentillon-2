@@ -154,6 +154,7 @@ export const PeremptionView: React.FC<PeremptionViewProps> = ({
       title: 'ALERTES DE PÉREMPTION',
       subtitle: 'Lots entrés en stock avec date d\'expiration',
       company: companyConfig,
+      professionalBranding: true,
       columns: ['Article', 'Lot', 'Entrée', 'Péremption', 'Jours', 'Qté lot', 'Stock', 'Statut'],
       rows: filtered.map(l => [
         l.productName, l.sourceDoc, l.sourceDate, l.expiryDate,

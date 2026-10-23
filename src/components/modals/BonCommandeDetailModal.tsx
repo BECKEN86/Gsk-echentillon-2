@@ -9,12 +9,9 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  ArrowRight,
-  Package,
   Layers,
   DollarSign,
   User,
-  Barcode,
   Percent,
   Printer,
   ReceiptText,
@@ -23,16 +20,19 @@ import {
   CreditCard,
   MessageCircle
 } from 'lucide-react';
-import { PurchaseOrder, Supplier, PriceInquiry, CompanyConfig } from '../../types';
+import { PurchaseOrder, Supplier, PriceInquiry, CompanyConfig, Product } from '../../types';
 import { formatFCFA } from '../../data/initialData';
 import { purchaseOrderText, sendWhatsApp } from '../../utils/whatsapp';
 import { purchaseLineQty } from '../../utils/purchaseCalc';
+import { buildPurchaseOrderPrintHtml, resolvePurchaseOrderUoa } from '../../utils/purchaseOrderPrint';
+import { withProfessionalPrintBranding } from '../../utils/professionalPrint';
 
 interface BonCommandeDetailModalProps {
   po: PurchaseOrder;
   supplier?: Supplier;
   inquiry?: PriceInquiry;
   companyConfig?: CompanyConfig | null;
+  products?: Product[];
   onClose: () => void;
   onValidatePO?: (po: PurchaseOrder) => void;
   onReceiveGoods?: (po: PurchaseOrder) => void;
@@ -45,6 +45,7 @@ export const BonCommandeDetailModal: React.FC<BonCommandeDetailModalProps> = ({
   supplier,
   inquiry,
   companyConfig,
+  products = [],
   onClose,
   onValidatePO,
   onReceiveGoods,
@@ -64,299 +65,10 @@ export const BonCommandeDetailModal: React.FC<BonCommandeDetailModalProps> = ({
 
   // Impression / Export PDF du bon de commande via iframe cachée
   const handlePrintPOPDF = () => {
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Bon de Commande - ${po.code}</title>
-          <meta charset="utf-8" />
-          <style>
-            @page { size: A4; margin: 15mm; }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-              color: #1e293b;
-              margin: 0;
-              padding: 20px;
-              font-size: 12px;
-              line-height: 1.4;
-            }
-            .header-table {
-              width: 100%;
-              margin-bottom: 25px;
-              border-bottom: 2px solid #001F3F;
-              padding-bottom: 15px;
-            }
-            .title {
-              font-size: 20px;
-              font-weight: 800;
-              color: #001F3F;
-              margin: 0 0 4px 0;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-            .subtitle {
-              font-size: 11px;
-              color: #64748b;
-              margin: 0;
-            }
-            .badge {
-              display: inline-block;
-              background: #f1f5f9;
-              padding: 4px 10px;
-              border-radius: 6px;
-              font-weight: bold;
-              color: #001F3F;
-              font-size: 11px;
-              font-family: monospace;
-            }
-            .badge-status {
-              display: inline-block;
-              padding: 3px 8px;
-              border-radius: 4px;
-              font-weight: bold;
-              font-size: 10px;
-              text-transform: uppercase;
-              margin-left: 8px;
-              ${po.status === 'Validé' ? 'background: #dcfce7; color: #166534;' : 'background: #fef3c7; color: #92400e;'}
-            }
-            .info-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 20px;
-              margin-bottom: 25px;
-            }
-            .info-card {
-              background: #f8fafc;
-              border: 1px solid #e2e8f0;
-              border-radius: 8px;
-              padding: 12px 15px;
-            }
-            .info-card h4 {
-              margin: 0 0 8px 0;
-              font-size: 11px;
-              text-transform: uppercase;
-              color: #475569;
-              letter-spacing: 0.5px;
-              border-bottom: 1px solid #e2e8f0;
-              padding-bottom: 4px;
-            }
-            .info-row {
-              margin: 4px 0;
-              display: flex;
-              justify-content: space-between;
-            }
-            .info-label {
-              color: #64748b;
-              font-weight: 500;
-            }
-            .info-val {
-              color: #0f172a;
-              font-weight: 700;
-            }
-            table.items-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            table.items-table th {
-              background-color: #001F3F;
-              color: #ffffff;
-              font-weight: 700;
-              text-align: left;
-              padding: 8px 10px;
-              font-size: 11px;
-              text-transform: uppercase;
-            }
-            table.items-table td {
-              border-bottom: 1px solid #e2e8f0;
-              padding: 8px 10px;
-              font-size: 11px;
-            }
-            table.items-table tr:nth-child(even) {
-              background-color: #f8fafc;
-            }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .totals-container {
-              float: right;
-              width: 280px;
-              margin-top: 10px;
-              border: 1px solid #e2e8f0;
-              border-radius: 8px;
-              overflow: hidden;
-            }
-            .totals-row {
-              display: flex;
-              justify-content: space-between;
-              padding: 7px 12px;
-              border-bottom: 1px solid #e2e8f0;
-            }
-            .totals-row.final {
-              background-color: #001F3F;
-              color: #ffffff;
-              font-weight: 800;
-              border-bottom: none;
-            }
-            .notes-box {
-              margin-top: 25px;
-              padding: 12px;
-              background-color: #fffbeb;
-              border: 1px solid #fef3c7;
-              border-radius: 8px;
-              font-size: 11px;
-              clear: both;
-            }
-            .signatures-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 40px;
-              margin-top: 50px;
-              clear: both;
-            }
-            .sig-block {
-              border-top: 1px dashed #94a3b8;
-              padding-top: 8px;
-              text-align: center;
-              font-size: 11px;
-              color: #64748b;
-            }
-          </style>
-        </head>
-        <body>
-          <table class="header-table">
-            <tr>
-              <td style="vertical-align: top;">
-                <div class="title">BON DE COMMANDE GROSSISTE</div>
-                <div class="subtitle">GeStock - Plateforme de Gestion de Stock & Achats</div>
-              </td>
-              <td style="text-align: right; vertical-align: top;">
-                <span class="badge">${po.code}</span>
-                <span class="badge-status">${po.status}</span>
-                <div style="font-size: 10px; color: #64748b; margin-top: 6px;">
-                  Émis le : <strong>${po.date}</strong>
-                </div>
-                ${(po.inquiryCode || inquiry?.code) ? `
-                  <div style="font-size: 10px; color: #2563eb; margin-top: 3px;">
-                    Devis source : <strong>${po.inquiryCode || inquiry?.code}</strong>
-                  </div>
-                ` : ''}
-              </td>
-            </tr>
-          </table>
-
-          <div class="info-grid">
-            <div class="info-card">
-              <h4>Émetteur / Acheteur</h4>
-              <div class="info-row">
-                <span class="info-label">Société :</span>
-                <span class="info-val">GeStock Distribution SARL</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Acheteur Responsable :</span>
-                <span class="info-val">${po.buyer || 'Kouassi Marc'}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Échéance de livraison :</span>
-                <span class="info-val">${po.expectedDate || po.orderDeadline || 'Dès que possible'}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Statut Paiement :</span>
-                <span class="info-val">${po.paymentStatus || 'Non payé'}</span>
-              </div>
-            </div>
-
-            <div class="info-card">
-              <h4>Fournisseur Grossiste</h4>
-              <div class="info-row">
-                <span class="info-label">Fournisseur :</span>
-                <span class="info-val">${supplier ? supplier.name : po.supplierName}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Contact / Représentant :</span>
-                <span class="info-val">${supplier?.contactPerson || 'Direction Commerciale'}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Téléphone :</span>
-                <span class="info-val">${supplier?.phone || 'Non renseigné'}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Adresse :</span>
-                <span class="info-val">${supplier?.address || 'Non renseignée'}</span>
-              </div>
-            </div>
-          </div>
-
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th style="width: 25px;">#</th>
-                <th>Code barre</th>
-                <th>Désignation Article</th>
-                <th class="text-center">UOA</th>
-                <th class="text-center">Qta</th>
-                <th class="text-center">Quantité</th>
-                <th class="text-right">Prix Unitaire</th>
-                <th class="text-center">TVA</th>
-                <th class="text-right">Montant</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${po.items.map((item, idx) => {
-                const lineHT = purchaseLineQty(item) * item.unitPrice;
-                const vRate = item.vatRate !== undefined ? item.vatRate : vatRate;
-                const lineTTC = item.total || Math.round(lineHT * (1 + vRate / 100));
-                return `
-                  <tr>
-                    <td>${idx + 1}</td>
-                    <td style="font-family: monospace; font-size: 10px;">${item.barcode || '-'}</td>
-                    <td><strong>${item.productName}</strong></td>
-                    <td class="text-center">${item.uoa || '-'}</td>
-                    <td class="text-center font-bold">${item.qta || '-'}</td>
-                    <td class="text-center font-bold">${item.quantity}</td>
-                    <td class="text-right">${item.unitPrice.toLocaleString('fr-FR')} FCFA</td>
-                    <td class="text-center">${vRate}%</td>
-                    <td class="text-right font-bold">${lineTTC.toLocaleString('fr-FR')} FCFA</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-
-          <div class="totals-container">
-            <div class="totals-row">
-              <span class="info-label">Total HT :</span>
-              <span class="info-val">${totalHT.toLocaleString('fr-FR')} FCFA</span>
-            </div>
-            <div class="totals-row">
-              <span class="info-label">Taux TVA (%) :</span>
-              <span class="info-val">${totalVAT.toLocaleString('fr-FR')} FCFA</span>
-            </div>
-            <div class="totals-row final">
-              <span>Total TTC :</span>
-              <span>${totalTTC.toLocaleString('fr-FR')} FCFA</span>
-            </div>
-          </div>
-
-          ${po.notes ? `
-            <div class="notes-box">
-              <strong>Instructions & Remarques :</strong><br/>
-              ${po.notes}
-            </div>
-          ` : ''}
-
-          <div class="signatures-grid">
-            <div class="sig-block">
-              <strong>Visa Acheteur / Direction GeStock</strong><br/>
-              <span style="font-size: 10px; color: #94a3b8;">Signature & Date</span>
-            </div>
-            <div class="sig-block">
-              <strong>Bon pour Accord Fournisseur</strong><br/>
-              <span style="font-size: 10px; color: #94a3b8;">Signature & Cachet commercial</span>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
+    const htmlContent = withProfessionalPrintBranding(
+      buildPurchaseOrderPrintHtml({ ...po, inquiryCode: po.inquiryCode || inquiry?.code }, supplier, companyConfig, products),
+      companyConfig
+    );
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -452,7 +164,7 @@ export const BonCommandeDetailModal: React.FC<BonCommandeDetailModalProps> = ({
                 <User className="w-3 h-3 text-slate-400" /> Acheteur
               </span>
               <p className="text-xs font-bold text-slate-800 mt-1 truncate">
-                {po.buyer || 'Kouassi Marc'}
+                {po.buyer || '—'}
               </p>
             </div>
 
@@ -580,9 +292,9 @@ export const BonCommandeDetailModal: React.FC<BonCommandeDetailModalProps> = ({
                           {item.productName}
                         </td>
                         <td className="py-2.5 px-2.5 text-center font-semibold text-slate-700">
-                          {item.uoa ? (
+                          {resolvePurchaseOrderUoa(item, products) ? (
                             <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-medium">
-                              {item.uoa}
+                              {resolvePurchaseOrderUoa(item, products)}
                             </span>
                           ) : (
                             <span className="text-slate-400">-</span>

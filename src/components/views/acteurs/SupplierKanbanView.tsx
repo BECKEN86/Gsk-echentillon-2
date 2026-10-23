@@ -1,19 +1,11 @@
 import React, { useState } from 'react';
 import {
   Truck,
-  Building2,
   Phone,
   MapPin,
-  CreditCard,
   Edit3,
   Trash2,
   Eye,
-  RotateCcw,
-  ShoppingBag,
-  ArrowUpDown,
-  CheckCircle2,
-  AlertTriangle,
-  Receipt,
   CheckSquare,
   Square,
   Tag
@@ -178,7 +170,6 @@ export const SupplierKanbanView: React.FC<SupplierKanbanViewProps> = ({
                 ) : (
                   column.suppliers.map((supplier, sIdx) => {
                     const hasDebt = (supplier.balance || 0) > 0;
-                    const creditLinesCount = supplier.creditLines?.length || 0;
                     const isSelected = selectedSupplierIds.includes(supplier.id);
 
                     return (

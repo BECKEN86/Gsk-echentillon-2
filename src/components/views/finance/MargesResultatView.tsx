@@ -1,37 +1,31 @@
 import React, { useState, useMemo } from 'react';
 import {
   TrendingUp,
-  TrendingDown,
-  PieChart,
   BarChart3,
   Percent,
-  DollarSign,
   Package,
-  Layers,
   FileSpreadsheet,
   Printer,
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
-  ArrowUpRight,
-  ShieldCheck,
   Scale,
   Award
 } from 'lucide-react';
-import { Product, SaleOrder, FinancialTransaction } from '../../../types';
+import { CompanyConfig, Product, SaleOrder, FinancialTransaction } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
 import { parseAppDate } from '../../../utils/dateUtils';
+import { withProfessionalPrintBranding } from '../../../utils/professionalPrint';
 
 interface MargesResultatViewProps {
   products: Product[];
   saleOrders: SaleOrder[];
   transactions: FinancialTransaction[];
+  companyConfig?: CompanyConfig | null;
 }
 
 export const MargesResultatView: React.FC<MargesResultatViewProps> = ({
   products,
   saleOrders,
-  transactions
+  transactions,
+  companyConfig
 }) => {
   const [periodFilter, setPeriodFilter] = useState<'all' | 'month' | 'quarter' | 'year'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('Toutes');
@@ -373,7 +367,7 @@ export const MargesResultatView: React.FC<MargesResultatViewProps> = ({
     const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
     if (frameDoc) {
       frameDoc.open();
-      frameDoc.write(htmlContent);
+      frameDoc.write(withProfessionalPrintBranding(htmlContent, companyConfig));
       frameDoc.close();
       setTimeout(() => {
         printFrame.contentWindow?.focus();

@@ -4,8 +4,7 @@
  * Au démarrage :
  *   1. les données sont placées dans %APPDATA%\GeStock\data (GESTOCK_DATA_DIR) ;
  *   2. le serveur Express embarqué (server/app.mjs) écoute sur 127.0.0.1:<port libre> ;
- *   3. le compte admin est vérifié/semé (seed.mjs) ;
- *   4. une fenêtre native charge l'application.
+ *   3. une fenêtre native charge l'application.
  *
  * Une seule instance autorisée ; les liens externes (WhatsApp…) s'ouvrent
  * dans le navigateur système.
@@ -58,12 +57,10 @@ async function startEmbeddedServer() {
   const entry = bundlePath
     ? pathToFileURL(bundlePath).href
     : pathToFileURL(path.join(__dirname, '..', 'server', 'desktop-entry.mjs')).href;
-  const { createApp, seedAdmin } = await import(entry);
+  const { createApp } = await import(entry);
 
   const staticDir = path.join(__dirname, '..', 'dist');
   const { app: expressApp, store } = await createApp({ staticDir });
-  await seedAdmin(store); // compte admin garanti au premier lancement
-
   const port = await freePort();
   await new Promise((resolve, reject) => {
     server = expressApp.listen(port, '127.0.0.1', resolve);

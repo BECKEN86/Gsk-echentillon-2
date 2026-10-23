@@ -12,9 +12,6 @@ import {
   Receipt,
   FileSpreadsheet,
   Printer,
-  CheckCircle2,
-  AlertCircle,
-  Eye,
   ShoppingBag
 } from 'lucide-react';
 import { CompanyConfig, PointDeVente, SaleOrder } from '../../types';
@@ -48,10 +45,6 @@ export const PointDeVenteDetailModal: React.FC<PointDeVenteDetailModalProps> = (
   const creditSalesAmount = sales
     .filter(o => o.paymentMethod === 'Crédit')
     .reduce((s, o) => s + (o.finalAmount || o.totalAmount), 0);
-  const cardSalesAmount = sales
-    .filter(o => o.paymentMethod === 'Carte')
-    .reduce((s, o) => s + (o.finalAmount || o.totalAmount), 0);
-
   const expectedClosing = pv.openingAmount + cashSalesAmount;
   const discrepancy = pv.closingAmount !== undefined ? pv.closingAmount - expectedClosing : undefined;
 

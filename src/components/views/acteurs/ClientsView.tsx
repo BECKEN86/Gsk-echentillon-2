@@ -20,16 +20,15 @@ import {
   CheckSquare,
   Square,
   MoreVertical,
-  AlertTriangle,
-  FileSpreadsheet
-} from 'lucide-react';
-import { Client } from '../../../types';
+  AlertTriangle} from 'lucide-react';
+import { Client, CompanyConfig } from '../../../types';
 import { formatFCFA } from '../../../data/initialData';
 import { ClientDetailModal } from '../../modals/ClientDetailModal';
 import { ClientKanbanView } from './ClientKanbanView';
 
 interface ClientsViewProps {
   clients: Client[];
+  companyConfig?: CompanyConfig | null;
   onAddClient: (client: Omit<Client, 'id' | 'totalPurchases'>) => void;
   onUpdateClient: (client: Client) => void;
   onDeleteClient: (id: string) => void;
@@ -37,6 +36,7 @@ interface ClientsViewProps {
 
 export const ClientsView: React.FC<ClientsViewProps> = ({
   clients,
+  companyConfig,
   onAddClient,
   onUpdateClient,
   onDeleteClient
@@ -665,11 +665,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
       <ClientDetailModal
         isOpen={isDetailModalOpen}
         client={selectedDetailClient}
+        companyConfig={companyConfig}
         onClose={() => setIsDetailModalOpen(false)}
-        onEditClient={(client) => {
-          setIsDetailModalOpen(false);
-          handleOpenEdit(client);
-        }}
         onUpdateClient={handleUpdateClientInDetail}
       />
 
@@ -812,9 +809,6 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 <p className="font-mono text-[10px] text-blue-800 bg-white/80 p-2 rounded border border-blue-200">
                   Nom, Type, Téléphone, Email, Adresse, Crédit
                 </p>
-                <p className="mt-1 text-slate-600">
-                  Exemple : <code>Supermarché Ivoire,Entreprise,+225 05 06 07 08 09,contact@ivoire.ci,Cocody,0</code>
-                </p>
               </div>
 
               <div>
@@ -834,15 +828,6 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                   <label className="font-semibold text-slate-700">
                     Ou collez les données directement :
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImportText("Supermarché Prima,Entreprise,+225 27 21 25 26 27,prima@ci.ci,Marcory Zone 4,50000\nKouassi Jean-Eudes,Particulier,+225 07 11 22 33 44,jean@email.ci,Yopougon,12000");
-                    }}
-                    className="text-[11px] text-blue-600 hover:underline font-semibold"
-                  >
-                    Charger exemple
-                  </button>
                 </div>
                 <textarea
                   rows={5}

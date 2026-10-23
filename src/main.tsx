@@ -1,6 +1,7 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
+import { ToastViewport } from './components/ToastViewport';
 import './index.css';
 
 // Safe fallbacks for iframe runtime where window.alert or window.open may throw
@@ -30,5 +31,6 @@ if (typeof window !== 'undefined') {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <ToastViewport />
   </StrictMode>,
 );

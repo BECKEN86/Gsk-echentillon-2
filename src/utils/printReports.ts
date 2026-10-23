@@ -1,5 +1,6 @@
 import { CompanyConfig, CustomerReturn, PointDeVente, SaleOrder, SupplierReturn } from '../types';
 import { formatFCFA } from '../data/initialData';
+import { withProfessionalPrintBranding } from './professionalPrint';
 
 /** Imprime un document HTML dans un iframe invisible (même mécanique que les états existants). */
 function printHtml(htmlContent: string) {
@@ -141,7 +142,7 @@ export function printCustomerReturn(ret: CustomerReturn, config?: CompanyConfig 
 
 /** Bon de retour fournisseur — ticket 80 mm. */
 export function printSupplierReturn(ret: SupplierReturn, config?: CompanyConfig | null) {
-  printHtml(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Retour ${esc(ret.code)}</title><style>${TICKET_CSS}</style></head><body>
+  printHtml(withProfessionalPrintBranding(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Retour ${esc(ret.code)}</title><style>${TICKET_CSS}</style></head><body>
     ${companyHeader(config)}
     <div class="center bold">RETOUR FOURNISSEUR — ${esc(ret.code)}</div>
     <div class="center">${esc(ret.date)} — ${esc(ret.status)}</div>
@@ -166,5 +167,5 @@ export function printSupplierReturn(ret: SupplierReturn, config?: CompanyConfig 
     ${ret.notes ? `<div class="line"></div><div>Notes : ${esc(ret.notes)}</div>` : ''}
     <div class="line"></div>
     <table><tr><td>Magasinier</td><td class="r">Fournisseur</td></tr><tr><td colspan="2" style="height:28px"></td></tr><tr><td>___________</td><td class="r">___________</td></tr></table>
-  </body></html>`);
+  </body></html>`, config, 'receipt'));
 }

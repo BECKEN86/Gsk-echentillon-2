@@ -10,7 +10,6 @@ import {
   Search, 
   AlertTriangle,
   Package,
-  Layers,
   Info
 } from 'lucide-react';
 import { Product } from '../../types';

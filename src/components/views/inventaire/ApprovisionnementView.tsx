@@ -3,28 +3,15 @@ import {
   PackagePlus,
   Plus,
   Search,
-  Filter,
-  Calendar,
-  User,
   ReceiptText,
-  Building2,
   Store,
   Layers,
-  ArrowUpDown,
-  Printer,
   Eye,
   Trash2,
   CheckCircle2,
   AlertCircle,
-  Clock,
-  Sparkles,
-  Barcode,
   PackageCheck,
-  MapPin,
-  ChevronRight,
-  X,
-  FileSpreadsheet
-} from 'lucide-react';
+  X} from 'lucide-react';
 import {
   ApprovisionnementRecord,
   ApprovisionnementItem,
@@ -35,8 +22,8 @@ import {
   StockMovement,
   StorageSite
 } from '../../../types';
-import { formatFCFA, INITIAL_STORAGE_SITES } from '../../../data/initialData';
-import { formatAppDate, formatAppDateTime } from '../../../utils/dateUtils';
+import { formatFCFA } from '../../../data/initialData';
+import { formatAppDateTime } from '../../../utils/dateUtils';
 import { ApprovisionnementDetailModal } from '../../modals/ApprovisionnementDetailModal';
 
 interface ApprovisionnementViewProps {
@@ -55,17 +42,6 @@ interface ApprovisionnementViewProps {
   onClearInitialReceptionId?: () => void;
 }
 
-const DESTINATION_SUGGESTIONS = [
-  { type: 'Magasin', label: 'Magasin Central - Allée Principale' },
-  { type: 'Magasin', label: 'Magasin Central - Zone Palettes' },
-  { type: 'Magasin', label: 'Réserve Générale Magasinier' },
-  { type: 'Rayon', label: 'Rayon Épicerie Sèche' },
-  { type: 'Rayon', label: 'Rayon Boissons & Eaux' },
-  { type: 'Rayon', label: 'Rayon Frais & Produits Vivriers' },
-  { type: 'Rayon', label: 'Rayon Hygiène & Entretien' },
-  { type: 'Rayon', label: 'Comptoir Vente Directe' }
-];
-
 export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
   approvisionnements = [],
   receptions = [],
@@ -81,14 +57,7 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
   // Sites de stockage configurés (Magasins et Rayons)
   const activeStorageSites = useMemo<StorageSite[]>(() => {
     if (storageSites && storageSites.length > 0) return storageSites;
-    try {
-      const saved = localStorage.getItem('gestock_storageSites');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch { /* ignore */ }
-    return INITIAL_STORAGE_SITES;
+    return [];
   }, [storageSites]);
 
   // Options correspondantes dans le cas Magasin
@@ -96,15 +65,7 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
     const fromSites = activeStorageSites
       .filter(s => s.type === 'Magasin')
       .map(s => s.name);
-    const defaults = [
-      'Magasin Central',
-      'Magasin Central - Allée 1',
-      'Magasin Central - Zone Palettes',
-      'Réserve Générale',
-      'Réserve Générale Magasinier',
-      'Dépôt Principal'
-    ];
-    return Array.from(new Set([...fromSites, ...defaults]));
+    return fromSites;
   }, [activeStorageSites]);
 
   // Options correspondantes dans le cas Rayon
@@ -112,16 +73,7 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
     const fromSites = activeStorageSites
       .filter(s => s.type === 'Rayon')
       .map(s => s.name);
-    const defaults = [
-      'Rayon Épicerie Sèche',
-      'Rayon Boissons & Eaux',
-      'Rayon Frais & Produits Vivriers',
-      'Rayon Hygiène & Entretien',
-      'Rayon Fruits & Légumes',
-      'Rayon Boucherie & Charcuterie',
-      'Comptoir Vente Directe'
-    ];
-    return Array.from(new Set([...fromSites, ...defaults]));
+    return fromSites;
   }, [activeStorageSites]);
 
   // Filters & Search
@@ -137,7 +89,7 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
   const [date, setDate] = useState(formatAppDateTime());
   const [operator, setOperator] = useState(currentUser?.name || 'Magasinier');
   const [destinationType, setDestinationType] = useState<'Magasin' | 'Rayon'>('Magasin');
-  const [targetLocation, setTargetLocation] = useState('Magasin Central');
+  const [targetLocation, setTargetLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ApprovisionnementItem[]>([]);
 
@@ -191,7 +143,7 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
     setDate(formatAppDateTime());
     setOperator(currentUser?.name || 'Magasinier');
     setDestinationType('Magasin');
-    const defaultMag = magasinOptions[0] || 'Magasin Central';
+    const defaultMag = magasinOptions[0] || '';
     setTargetLocation(defaultMag);
     setNotes('');
 
@@ -263,6 +215,10 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
       setErrorMsg("La quantité totale à approvisionner doit être supérieure à zéro.");
       return;
     }
+    if (!targetLocation.trim()) {
+      setErrorMsg('Saisissez un emplacement de destination.');
+      return;
+    }
 
     const selectedRec = receptions.find(r => r.id === selectedReceptionId);
     const recNumber = selectedRec ? selectedRec.code : 'REC-MANUELLE';
@@ -276,7 +232,7 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
       receptionId: selectedRec?.id,
       supplierName: supplier,
       destinationType,
-      targetLocation: targetLocation.trim() || (destinationType === 'Magasin' ? 'Magasin Central' : 'Rayon'),
+      targetLocation: targetLocation.trim(),
       items: items.filter(it => it.quantity > 0),
       totalItemsCount: items.filter(it => it.quantity > 0).length,
       totalQuantity: totalModalQty,
@@ -712,7 +668,7 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
                           type="button"
                           onClick={() => {
                             setDestinationType('Magasin');
-                            setTargetLocation(magasinOptions[0] || 'Magasin Central');
+                            setTargetLocation(magasinOptions[0] || '');
                           }}
                           className={`p-2 rounded-lg font-bold flex items-center justify-center gap-1.5 border transition-colors cursor-pointer ${
                             destinationType === 'Magasin'
@@ -726,7 +682,7 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
                           type="button"
                           onClick={() => {
                             setDestinationType('Rayon');
-                            setTargetLocation(rayonOptions[0] || 'Rayon Épicerie Sèche');
+                            setTargetLocation(rayonOptions[0] || '');
                           }}
                           className={`p-2 rounded-lg font-bold flex items-center justify-center gap-1.5 border transition-colors cursor-pointer ${
                             destinationType === 'Rayon'
@@ -750,7 +706,7 @@ export const ApprovisionnementView: React.FC<ApprovisionnementViewProps> = ({
                           required
                           value={targetLocation}
                           onChange={(e) => setTargetLocation(e.target.value)}
-                          placeholder={destinationType === 'Magasin' ? 'ex: Magasin Central' : 'ex: Rayon Épicerie Sèche'}
+                          placeholder="Saisir un emplacement"
                           className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-blue-500"
                         />
                         <select

@@ -59,6 +59,7 @@ const SECTION_LABELS: Record<NavSection, string> = {
   'finance-tresorerie-caisses': 'Caisses & Trésorerie',
   'parametres-utilisateurs': 'Utilisateurs',
   'parametres-configuration': 'Configuration Société',
+  'parametres-import': 'Importer une base de données',
   'parametres-export': 'Savegarder (Export Excel)',
   'parametres-audit': 'Journal d\'Audit',
   'guide-utilisateur': 'Guide Utilisateur (PDF)'

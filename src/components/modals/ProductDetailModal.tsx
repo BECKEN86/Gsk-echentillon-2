@@ -5,7 +5,6 @@ import {
   Barcode,
   Package,
   Layers,
-  TrendingUp,
   Tag,
   AlertTriangle,
   CheckCircle,
@@ -17,10 +16,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Search,
-  Calendar,
-  User,
-  FileText
-} from 'lucide-react';
+  User} from 'lucide-react';
 import { Product, StockMovement } from '../../types';
 import { formatFCFA } from '../../data/initialData';
 

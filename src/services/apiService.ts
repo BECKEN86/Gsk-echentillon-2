@@ -1,5 +1,5 @@
-import { AppDatabase } from './storageService';
-import { UserAccount } from '../types';
+import { AppDatabase, getEmptyDatabase } from './storageService';
+import { PointDeVente, UserAccount } from '../types';
 
 /**
  * Couche d'accès au serveur GeStock (Express → SQLite / Supabase REST).
@@ -153,6 +153,36 @@ export interface LoginResult {
   error?: string;
   /** true si le serveur est injoignable — le caller peut basculer en mode dégradé */
   offline?: boolean;
+  setupRequired?: boolean;
+}
+
+export async function getFirstAdminSetupStatus(): Promise<boolean | null> {
+  const res = await apiFetch('/auth/setup-status');
+  if (!res?.ok) return null;
+  const data = await res.json().catch(() => null);
+  return typeof data?.setupRequired === 'boolean' ? data.setupRequired : null;
+}
+
+export async function setupFirstAdminRemote(
+  username: string,
+  name: string,
+  password: string
+): Promise<LoginResult> {
+  const res = await apiFetch('/auth/setup', {
+    method: 'POST',
+    body: JSON.stringify({ username, name, password })
+  });
+  if (!res) return { offline: true, error: 'Serveur injoignable — mode local.' };
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return {
+      error: data.error || 'La configuration du compte administrateur a échoué.',
+      setupRequired: data.setupRequired
+    };
+  }
+  setSessionToken(data.token);
+  lastSynced = { ...getEmptyDatabase(), users: [data.user as UserAccount] };
+  return { user: data.user as UserAccount, setupRequired: false };
 }
 
 export async function loginRemote(username: string, password: string): Promise<LoginResult> {
@@ -323,6 +353,26 @@ export async function resetRemoteDatabase(): Promise<boolean> {
   if (!API_BASE) return false;
   const res = await apiFetch('/db/reset', { method: 'POST' });
   return !!res && res.ok;
+}
+
+export async function claimCashRegisterRemote(
+  id: string
+): Promise<{ remote: boolean; ok: boolean; session?: PointDeVente; error?: string }> {
+  const res = await apiFetch(`/pos/registers/${encodeURIComponent(id)}/claim`, { method: 'POST' });
+  if (!res) return { remote: false, ok: false };
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { remote: true, ok: false, error: data.error || 'Impossible de réserver cette caisse.' };
+  const rev = data.rev;
+  if (typeof rev === 'number' && rev > lastRev) lastRev = rev;
+  return { remote: true, ok: true, session: data.session as PointDeVente };
+}
+
+export async function releaseCashRegisterRemote(id: string): Promise<void> {
+  const res = await apiFetch(`/pos/registers/${encodeURIComponent(id)}/release`, { method: 'POST' });
+  if (res?.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (typeof data.rev === 'number' && data.rev > lastRev) lastRev = data.rev;
+  }
 }
 
 /* ------------------------------------------------------------------ */

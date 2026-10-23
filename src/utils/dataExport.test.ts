@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AppDatabase } from '../services/storageService';
-import { EXPORT_PARTS, ExportFilters, depotOptions } from './dataExport';
+import { EXPORT_PARTS, depotOptions } from './dataExport';
 import { buildXlsx, buildZip } from './xlsxWriter';
 import { Client, Product, SaleOrder, StockMovement, UserAccount } from '../types';
 

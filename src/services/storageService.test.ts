@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeDatabase, getDefaultDatabase } from './storageService';
-import { DEMO_USERS } from './authService';
 
 describe('normalizeDatabase', () => {
-  it('injecte les comptes démo si l\'annuaire est absent', () => {
+  it('laisse les collections vides si elles sont absentes', () => {
     const db = normalizeDatabase({});
-    expect(db.users).toEqual(DEMO_USERS);
+    expect(db.users).toEqual([]);
+    expect(db.products).toEqual([]);
+    expect(db.categories).toEqual([]);
+    expect(db.storageSites).toEqual([]);
+    expect(db.approvisionnements).toEqual([]);
   });
 
   it('migre les ventes embarquées dans pv.sales vers saleOrders (dédup par id)', () => {
@@ -51,7 +54,7 @@ describe('normalizeDatabase', () => {
 });
 
 describe('getDefaultDatabase', () => {
-  it('contient toutes les collections', () => {
+  it('contient des collections vides', () => {
     const db = getDefaultDatabase();
     for (const key of [
       'products', 'categories', 'movements', 'clients', 'suppliers', 'inquiries',
@@ -60,5 +63,7 @@ describe('getDefaultDatabase', () => {
     ]) {
       expect(db[key as keyof typeof db], key).toBeDefined();
     }
+    expect(db.products).toEqual([]);
+    expect(db.users).toEqual([]);
   });
 });

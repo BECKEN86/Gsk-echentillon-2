@@ -1,9 +1,11 @@
 import { CompanyConfig } from '../types';
+import { withProfessionalPrintBranding } from './professionalPrint';
 
 interface PrintListOptions {
   title: string;
   subtitle?: string;
   company?: CompanyConfig | null;
+  professionalBranding?: boolean;
   columns: string[];
   rows: string[][];
 }
@@ -12,7 +14,7 @@ const esc = (s?: string) =>
   (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** État de liste générique A4 — même mécanique iframe que les états existants. */
-export function printList({ title, subtitle, company, columns, rows }: PrintListOptions) {
+export function printList({ title, subtitle, company, professionalBranding = false, columns, rows }: PrintListOptions) {
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(title)}</title>
     <style>
       @page { size: A4 landscape; margin: 12mm; }
@@ -27,7 +29,7 @@ export function printList({ title, subtitle, company, columns, rows }: PrintList
     </style></head><body>
     <div class="header">
       <div>
-        <h1 class="title">${esc(company?.name || 'GESTOCK')} — ${esc(title)}</h1>
+        <h1 class="title">${professionalBranding ? esc(title) : `${esc(company?.name || 'GESTOCK')} — ${esc(title)}`}</h1>
         ${subtitle ? `<p class="subtitle">${esc(subtitle)}</p>` : ''}
       </div>
       <div style="text-align:right;font-size:10px;color:#64748b">Édité le ${new Date().toLocaleString('fr-FR')}<br/>${rows.length} ligne(s)</div>
@@ -49,7 +51,7 @@ export function printList({ title, subtitle, company, columns, rows }: PrintList
   const doc = frame.contentWindow?.document;
   if (!doc) return;
   doc.open();
-  doc.write(html);
+  doc.write(professionalBranding ? withProfessionalPrintBranding(html, company) : html);
   doc.close();
   frame.contentWindow?.focus();
   setTimeout(() => {

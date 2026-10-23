@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   X,
   FileCode,
-  ShieldCheck,
   Server,
   Package,
   Users,
@@ -17,6 +16,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { AppDatabase, downloadBackupFile, importDatabaseJSON, getDefaultDatabase, saveDatabase, getDatabaseStats } from '../../services/storageService';
+import { showToast } from '../../utils/toast';
 
 interface DatabaseManagerModalProps {
   currentDatabase: AppDatabase;
@@ -40,9 +40,11 @@ export const DatabaseManagerModal: React.FC<DatabaseManagerModalProps> = ({
     try {
       downloadBackupFile(currentDatabase);
       setSuccessMessage('Base de données sauvegardée et téléchargée sur votre machine avec succès !');
+      showToast('La sauvegarde de la base de données a été téléchargée avec succès.');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch {
       setErrorMessage('Erreur lors du téléchargement de la sauvegarde.');
+      showToast('Erreur lors du téléchargement de la sauvegarde.', 'error');
     }
   };
 
@@ -57,13 +59,16 @@ export const DatabaseManagerModal: React.FC<DatabaseManagerModalProps> = ({
       if (res.success && res.data) {
         onDatabaseRestored(res.data);
         setSuccessMessage('Base de données locale restaurée avec succès !');
+        showToast('La base de données a été importée avec succès.');
         setTimeout(() => setSuccessMessage(null), 4000);
       } else {
         setErrorMessage(res.error || 'Erreur lors de la lecture du fichier de sauvegarde.');
+        showToast(res.error || 'Erreur lors de la lecture du fichier de sauvegarde.', 'error');
       }
     };
     reader.onerror = () => {
       setErrorMessage('Impossible de lire le fichier sélectionné.');
+      showToast('Impossible de lire le fichier sélectionné.', 'error');
     };
     reader.readAsText(file);
     // Reset file input value so same file can be reloaded
@@ -71,11 +76,20 @@ export const DatabaseManagerModal: React.FC<DatabaseManagerModalProps> = ({
   };
 
   const handleResetToFactory = () => {
-    const defaults = getDefaultDatabase();
-    saveDatabase(defaults);
-    onDatabaseRestored(defaults);
+    const emptyDatabase = {
+      ...getDefaultDatabase(),
+      users: currentDatabase.users,
+      companyConfig: currentDatabase.companyConfig
+    };
+    if (!saveDatabase(emptyDatabase)) {
+      setErrorMessage('Impossible de vider la base de données locale.');
+      showToast('Impossible de vider la base de données locale.', 'error');
+      return;
+    }
+    onDatabaseRestored(emptyDatabase);
     setIsResetConfirmOpen(false);
-    setSuccessMessage('Données réinitialisées aux valeurs initiales d\'usine avec succès.');
+    setSuccessMessage('Les données métier ont été supprimées. Les utilisateurs et la configuration société ont été conservés.');
+    showToast('Les données métier ont été supprimées avec succès.');
     setTimeout(() => setSuccessMessage(null), 4000);
   };
 
@@ -275,11 +289,11 @@ export const DatabaseManagerModal: React.FC<DatabaseManagerModalProps> = ({
                 className="text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1.5 transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Réinitialiser aux données d'usine (Défaut)</span>
+                <span>Vider les données métier</span>
               </button>
             ) : (
               <div className="flex items-center gap-2 bg-rose-50 p-2.5 rounded-lg border border-rose-200">
-                <span className="text-xs text-rose-800 font-medium">Confirmer la réinitialisation ?</span>
+                <span className="text-xs text-rose-800 font-medium">Supprimer les données métier ? Les utilisateurs seront conservés.</span>
                 <button
                   type="button"
                   onClick={handleResetToFactory}

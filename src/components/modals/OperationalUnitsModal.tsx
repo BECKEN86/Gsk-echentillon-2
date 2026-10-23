@@ -2,16 +2,12 @@ import React, { useState } from 'react';
 import { 
   Layers, 
   X, 
-  Search, 
   Trash2, 
   Check, 
   ShoppingBag, 
   Truck, 
-  Info,
   Plus,
   Edit2,
-  Tag,
-  DollarSign,
   PackageCheck
 } from 'lucide-react';
 import { Product, OperationalUnit, OperationalUnitType } from '../../types';
@@ -37,7 +33,6 @@ export const OperationalUnitsModal: React.FC<OperationalUnitsModalProps> = ({
   const [selectedProductId, setSelectedProductId] = useState<string>(
     initialProductId || (products[0]?.id || '')
   );
-  const [searchTerm, setSearchTerm] = useState('');
 
   // Formulaire de création / édition d'une UOA ou UOV avec les 4 champs demandés :
   // Libellé, Type (UOA ou UOV), Quantité, Prix
@@ -155,12 +150,6 @@ export const OperationalUnitsModal: React.FC<OperationalUnitsModalProps> = ({
       handleResetForm();
     }
   };
-
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const uovCount = operationalUnits.filter(u => u.type === 'UOV').length;
   const uoaCount = operationalUnits.filter(u => u.type === 'UOA').length;

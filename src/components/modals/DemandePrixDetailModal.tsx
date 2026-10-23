@@ -8,7 +8,6 @@ import {
   Clock,
   ArrowRight,
   Package,
-  Layers,
   DollarSign,
   User,
   Barcode,
@@ -17,13 +16,16 @@ import {
   Edit,
   Copy
 } from 'lucide-react';
-import { PriceInquiry, Supplier } from '../../types';
+import { CompanyConfig, PriceInquiry, Supplier } from '../../types';
 import { formatFCFA } from '../../data/initialData';
 import { purchaseLineQty } from '../../utils/purchaseCalc';
+import { buildPriceInquiryPrintHtml } from '../../utils/priceInquiryPrint';
+import { withProfessionalPrintBranding } from '../../utils/professionalPrint';
 
 interface DemandePrixDetailModalProps {
   inquiry: PriceInquiry;
   supplier?: Supplier;
+  companyConfig?: CompanyConfig | null;
   onClose: () => void;
   onConvertToPurchaseOrder: (inquiry: PriceInquiry) => void;
   onEdit?: (inquiry: PriceInquiry) => void;
@@ -33,6 +35,7 @@ interface DemandePrixDetailModalProps {
 export const DemandePrixDetailModal: React.FC<DemandePrixDetailModalProps> = ({
   inquiry,
   supplier,
+  companyConfig,
   onClose,
   onConvertToPurchaseOrder,
   onEdit,
@@ -51,263 +54,10 @@ export const DemandePrixDetailModal: React.FC<DemandePrixDetailModalProps> = ({
 
   // Impression / Export PDF de la fiche de demande de prix
   const handlePrintInquiryPDF = () => {
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Demande de Prix - ${inquiry.code}</title>
-          <meta charset="utf-8" />
-          <style>
-            @page { size: A4; margin: 15mm; }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-              color: #1e293b;
-              margin: 0;
-              padding: 20px;
-              font-size: 12px;
-              line-height: 1.4;
-            }
-            .header-table {
-              width: 100%;
-              margin-bottom: 25px;
-              border-bottom: 2px solid #001F3F;
-              padding-bottom: 15px;
-            }
-            .title {
-              font-size: 20px;
-              font-weight: 800;
-              color: #001F3F;
-              margin: 0 0 4px 0;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-            .subtitle {
-              font-size: 11px;
-              color: #64748b;
-              margin: 0;
-            }
-            .badge {
-              display: inline-block;
-              background: #f1f5f9;
-              padding: 4px 10px;
-              border-radius: 6px;
-              font-weight: bold;
-              color: #001F3F;
-              font-size: 11px;
-              font-family: monospace;
-            }
-            .info-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 20px;
-              margin-bottom: 25px;
-            }
-            .info-card {
-              background: #f8fafc;
-              border: 1px solid #e2e8f0;
-              border-radius: 8px;
-              padding: 12px 15px;
-            }
-            .info-card h4 {
-              margin: 0 0 8px 0;
-              font-size: 11px;
-              text-transform: uppercase;
-              color: #475569;
-              letter-spacing: 0.5px;
-              border-bottom: 1px solid #e2e8f0;
-              padding-bottom: 4px;
-            }
-            .info-row {
-              margin: 4px 0;
-              display: flex;
-              justify-content: space-between;
-            }
-            .info-label {
-              color: #64748b;
-              font-weight: 500;
-            }
-            .info-val {
-              color: #0f172a;
-              font-weight: 700;
-            }
-            table.items-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            table.items-table th {
-              background-color: #001F3F;
-              color: #ffffff;
-              font-weight: 700;
-              text-align: left;
-              padding: 8px 10px;
-              font-size: 11px;
-              text-transform: uppercase;
-            }
-            table.items-table td {
-              border-bottom: 1px solid #e2e8f0;
-              padding: 8px 10px;
-              font-size: 11px;
-            }
-            table.items-table tr:nth-child(even) {
-              background-color: #f8fafc;
-            }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .totals-container {
-              float: right;
-              width: 280px;
-              margin-top: 10px;
-              border: 1px solid #e2e8f0;
-              border-radius: 8px;
-              overflow: hidden;
-            }
-            .totals-row {
-              display: flex;
-              justify-content: space-between;
-              padding: 7px 12px;
-              border-bottom: 1px solid #e2e8f0;
-              font-size: 11px;
-            }
-            .totals-row.grand-total {
-              background-color: #001F3F;
-              color: #ffffff;
-              font-weight: 800;
-              font-size: 13px;
-              border-bottom: none;
-            }
-            .footer-note {
-              margin-top: 50px;
-              padding-top: 15px;
-              border-top: 1px dashed #cbd5e1;
-              color: #64748b;
-              font-size: 10px;
-              text-align: center;
-              clear: both;
-            }
-          </style>
-        </head>
-        <body>
-          <table class="header-table">
-            <tr>
-              <td>
-                <h1 class="title">Demande de Prix</h1>
-                <p class="subtitle">Document de consultation tarifaire et cotation fournisseur</p>
-              </td>
-              <td style="text-align: right;">
-                <span class="badge">Réf : ${inquiry.code}</span>
-                <div style="margin-top: 5px; color: #475569; font-size: 11px;">
-                  Date d'émission : <strong>${inquiry.date}</strong>
-                </div>
-                <div style="margin-top: 3px; color: #dc2626; font-weight: bold; font-size: 11px;">
-                  Échéance : ${inquiry.orderDeadline || 'À convenir'}
-                </div>
-              </td>
-            </tr>
-          </table>
-
-          <div class="info-grid">
-            <div class="info-card">
-              <h4>Demandeur (Acheteur)</h4>
-              <div class="info-row">
-                <span class="info-label">Acheteur responsable :</span>
-                <span class="info-val">${inquiry.buyer || 'Non spécifié'}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Référence consultation :</span>
-                <span class="info-val">${inquiry.code}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Date limite de réponse :</span>
-                <span class="info-val">${inquiry.orderDeadline || 'Non définie'}</span>
-              </div>
-            </div>
-
-            <div class="info-card">
-              <h4>Destinataire (Fournisseur)</h4>
-              <div class="info-row">
-                <span class="info-label">Fournisseur :</span>
-                <span class="info-val">${inquiry.supplierName || supplier?.name || 'Fournisseur de consultation'}</span>
-              </div>
-              ${supplier?.contactPerson ? `
-              <div class="info-row">
-                <span class="info-label">Contact :</span>
-                <span class="info-val">${supplier.contactPerson}</span>
-              </div>` : ''}
-              ${supplier?.phone ? `
-              <div class="info-row">
-                <span class="info-label">Téléphone :</span>
-                <span class="info-val">${supplier.phone}</span>
-              </div>` : ''}
-              ${supplier?.email ? `
-              <div class="info-row">
-                <span class="info-label">Email :</span>
-                <span class="info-val">${supplier.email}</span>
-              </div>` : ''}
-              ${supplier?.address ? `
-              <div class="info-row">
-                <span class="info-label">Adresse :</span>
-                <span class="info-val">${supplier.address}</span>
-              </div>` : ''}
-            </div>
-          </div>
-
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th style="width: 15%;">Fournisseur</th>
-                <th style="width: 15%;">Code barre</th>
-                <th style="width: 32%;">Désignation</th>
-                <th class="text-center" style="width: 10%;">UOA</th>
-                <th class="text-center" style="width: 8%;">Quantité</th>
-                <th class="text-right" style="width: 10%;">Prix Unit.</th>
-                <th class="text-center" style="width: 5%;">TVA</th>
-                <th class="text-right" style="width: 15%;">Montant</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${inquiry.items.map(it => {
-                const suppName = it.supplierName || inquiry.supplierName || '—';
-                const itemVat = it.vatRate != null && String(it.vatRate) !== '' ? Number(it.vatRate) : vatRate;
-                const itemTotal = it.totalAmount ?? purchaseLineQty(it) * it.estimatedPrice * (1 + itemVat / 100);
-                return `
-                  <tr>
-                    <td>${suppName}</td>
-                    <td style="font-family: monospace;">${it.barcode || '—'}</td>
-                    <td><strong>${it.productName}</strong></td>
-                    <td class="text-center">${it.uoa || '—'}</td>
-                    <td class="text-center"><strong>${it.requestedQty}</strong></td>
-                    <td class="text-right">${it.estimatedPrice.toLocaleString('fr-FR')} F CFA</td>
-                    <td class="text-center">${itemVat}%</td>
-                    <td class="text-right"><strong>${Math.round(itemTotal).toLocaleString('fr-FR')} F CFA</strong></td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-
-          <div class="totals-container">
-            <div class="totals-row">
-              <span>Total HT :</span>
-              <strong>${totalHT.toLocaleString('fr-FR')} F CFA</strong>
-            </div>
-            <div class="totals-row">
-              <span>Taux TVA (%) / Taxes :</span>
-              <strong>${totalVAT.toLocaleString('fr-FR')} F CFA</strong>
-            </div>
-            <div class="totals-row grand-total">
-              <span>Total TTC :</span>
-              <span>${totalTTC.toLocaleString('fr-FR')} F CFA</span>
-            </div>
-          </div>
-
-          <div class="footer-note">
-            Merci de nous transmettre votre meilleure offre tarifaire et conditions de livraison avant la date limite indiquée.<br />
-            Document généré automatiquement via la plateforme de gestion des achats.
-          </div>
-        </body>
-      </html>
-    `;
+    const htmlContent = withProfessionalPrintBranding(
+      buildPriceInquiryPrintHtml(inquiry, supplier, companyConfig),
+      companyConfig
+    );
 
     const printIframe = document.createElement('iframe');
     printIframe.setAttribute('style', 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;');
